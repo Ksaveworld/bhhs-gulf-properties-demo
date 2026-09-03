@@ -9,6 +9,8 @@ export interface Filters {
   currency: string;
   bedrooms_min: number | null;
   area_min: number | null;
+  /** Manual library search only; this is not a client-requirement or CSV field. */
+  area_max?: number | null;
   area_unit: AreaUnit | null;
   area_basis: string;
   property_types: string[];
@@ -16,20 +18,30 @@ export interface Filters {
   listing_status: string;
   amenities: string[];
   move_in_by: string | null;
-  sort: 'updated_desc' | 'price_asc' | 'price_desc';
+  sort: 'updated_desc' | 'updated_asc' | 'price_asc' | 'price_desc';
 }
 
 /** Explicit search defaults; these are demo UI choices, not BHHS business policy. */
 export const EMPTY_FILTERS: Filters = {
   areas: [], budget_min: null, budget_max: null, currency: 'AED', bedrooms_min: null,
-  area_min: null, area_unit: 'sqft', area_basis: 'built_up', property_types: [],
+  area_min: null, area_max: null, area_unit: 'sqft', area_basis: 'built_up', property_types: [],
   market_preference: '', listing_status: 'active', amenities: [], move_in_by: null, sort: 'updated_desc',
 };
 
 const SQFT_PER_SQM = 10.763910416709722;
-const finite = (n: number | null): n is number => n !== null && Number.isFinite(n);
+const finite = (n: number | null | undefined): n is number => n !== null && n !== undefined && Number.isFinite(n);
 export function convertArea(value: number, from: AreaUnit, to: AreaUnit): number {
   return from === to ? value : from === 'sqm' ? value * SQFT_PER_SQM : value / SQFT_PER_SQM;
+}
+/** Invalid manual ranges remain visible for correction and never expand the search. */
+export function getAreaRangeError(filters: Pick<Filters, 'area_min' | 'area_max'>): string | null {
+  if ([filters.area_min, filters.area_max].some(value => value != null && (!Number.isFinite(value) || value < 0))) {
+    return 'Enter a size of zero or greater, or leave the limit blank.';
+  }
+  if (finite(filters.area_min) && finite(filters.area_max) && filters.area_min > filters.area_max) {
+    return 'Min. size cannot be greater than Max. size.';
+  }
+  return null;
 }
 export function validDate(value: string | null): value is string {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -49,13 +61,17 @@ export function latestListings(rows: ListingSnapshot[]): ListingSnapshot[] {
   return [...listings.values()];
 }
 
-function updatedOrder(a: ListingSnapshot, b: ListingSnapshot): number {
+function updatedOrder(a: ListingSnapshot, b: ListingSnapshot, ascending = false): number {
   const timeA = Date.parse(a.captured_at), timeB = Date.parse(b.captured_at);
-  return (Number.isFinite(timeB) ? timeB : 0) - (Number.isFinite(timeA) ? timeA : 0) || a.listing_id.localeCompare(b.listing_id);
+  const tie = () => a.listing_id.localeCompare(b.listing_id);
+  if (!Number.isFinite(timeA)) return Number.isFinite(timeB) ? 1 : tie();
+  if (!Number.isFinite(timeB)) return -1;
+  return (timeA - timeB) * (ascending ? 1 : -1) || tie();
 }
 
 /** Returns confirmed search hits. Missing selected hard-filter fields never count as a pass. */
 export function filterListings(rows: ListingSnapshot[], filters: Filters): ListingSnapshot[] {
+  if (getAreaRangeError(filters)) return [];
   const filtered = latestListings(rows).filter((row) => {
     if (filters.areas.length && !filters.areas.includes(row.area_name)) return false;
     if (filters.property_types.length && !filters.property_types.includes(row.property_type)) return false;
@@ -67,17 +83,19 @@ export function filterListings(rows: ListingSnapshot[], filters: Filters): Listi
       if (finite(filters.budget_max) && row.asking_price > filters.budget_max) return false;
     }
     if (finite(filters.bedrooms_min) && (!finite(row.bedrooms) || row.bedrooms < filters.bedrooms_min)) return false;
-    if (finite(filters.area_min)) {
+    if (finite(filters.area_min) || finite(filters.area_max)) {
       if (!filters.area_unit) return false;
       if (!filters.area_basis || filters.area_basis === 'unknown' || !row.area_basis || row.area_basis === 'unknown' || row.area_basis !== filters.area_basis || !finite(row.area_value) || !row.area_unit) return false;
-      if (convertArea(row.area_value, row.area_unit, filters.area_unit) + 1e-8 < filters.area_min) return false;
+      const size = convertArea(row.area_value, row.area_unit, filters.area_unit);
+      if (finite(filters.area_min) && size + 1e-8 < filters.area_min) return false;
+      if (finite(filters.area_max) && size - 1e-8 > filters.area_max) return false;
     }
     if (filters.amenities.some((amenity) => !(row.amenities ?? []).includes(amenity))) return false;
     if (filters.move_in_by && (!validDate(filters.move_in_by) || !validDate(row.availability_date) || row.availability_date > filters.move_in_by)) return false;
     return true;
   });
   return filtered.sort((a, b) => {
-    if (filters.sort === 'updated_desc') return updatedOrder(a, b);
+    if (filters.sort === 'updated_desc' || filters.sort === 'updated_asc') return updatedOrder(a, b, filters.sort === 'updated_asc');
     // No FX source is configured. Group by original currency before numeric sorting.
     const currencyOrder = (a.currency ?? '\uffff').localeCompare(b.currency ?? '\uffff');
     if (currencyOrder) return currencyOrder;

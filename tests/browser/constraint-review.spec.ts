@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test';
+import { openPropertyLibrary } from './helpers';
 import type { ClientRequirement, Dataset } from '../../shared/types';
 
 const requirementId = 'DEMO-TEXT-R-001';
@@ -25,10 +26,9 @@ async function loadSyntheticRequest(page: Page, request: APIRequestContext, over
   await page.route('**/api/dataset', route => route.fulfill({ json: {
     ...dataset, client_requirements: [requirement], match_reference: [],
   } }));
-  await page.goto('/');
-  await expect(page.getByTestId('result-count')).toHaveText('9');
+  await openPropertyLibrary(page);
   await page.getByRole('button', { name: /Clients & needs/ }).click();
-  await page.locator('.client-row').filter({ hasText: requirementId }).getByRole('button', { name: /View properties/ }).click();
+  await page.locator(`.client-row[data-requirement-id="${requirementId}"]`).getByRole('button', { name: /View properties/ }).click();
   await expect(page.getByTestId('result-count')).toHaveText('2');
   return requirement;
 }
@@ -84,7 +84,7 @@ test('strict Chinese equivalents show their field mapping and an edited budget b
   await drawer.getByRole('button', { name: 'Apply to property library' }).click();
   await expect(drawer).toBeHidden();
   await expect(page.getByTestId('result-count')).toHaveText('1');
-  await expect(page.getByTestId('library-text-warning')).toContainText('structured search candidates, not confirmed recommendations');
+  await expect(page.getByTestId('library-text-warning')).toContainText('structured candidates, not confirmed recommendations');
   await expect(page.getByTestId('library-text-warning')).toContainText('budget_max');
   await expect(page.getByTestId('listing-DEMO-L-001')).toContainText('Review details');
   await expect(page.getByTestId('listing-DEMO-L-001')).not.toContainText('Conditions met');
@@ -114,7 +114,7 @@ test('a required garden stored only as a preference and maximum, approximate or 
   await drawer.getByRole('button', { name: 'Apply to property library' }).click();
   await expect(drawer).toBeHidden();
   await expect(page.getByTestId('result-count')).toHaveText('2');
-  await expect(libraryWarning).toContainText('structured search candidates, not confirmed recommendations');
+  await expect(libraryWarning).toContainText('structured candidates, not confirmed recommendations');
   for (const clause of ['requires garden', '最多2卧室', '面积约1100平方英尺', '必须能够从客厅看到晨光']) {
     await expect(libraryWarning).toContainText(clause);
   }

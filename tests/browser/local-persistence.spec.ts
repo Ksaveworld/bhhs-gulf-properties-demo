@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext, type BrowserContext, type Locator, type Page } from '@playwright/test';
+import { newRequirement, openPropertyLibrary } from './helpers';
 import type { ClientRequirement, Dataset } from '../../shared/types';
 
 type ScopedDataset = Dataset & { meta: Dataset['meta'] & { storage_namespace?: string } };
@@ -39,8 +40,7 @@ async function fixture(context: BrowserContext, request: APIRequestContext, name
 }
 
 async function ready(page: Page) {
-  await page.goto('/');
-  await expect(page.getByTestId('result-count')).toHaveText('9');
+  await openPropertyLibrary(page);
 }
 
 async function clientList(page: Page) {
@@ -88,8 +88,7 @@ test('new requirements and another review of a saved copy survive reload and reo
   await fixture(context, request, 'new-and-review');
   await ready(page);
   await expect(page.getByTestId('local-storage-notice')).toBeVisible();
-  await page.getByRole('button', { name: 'Client requirements', exact: true }).click();
-  let drawer = page.getByRole('dialog', { name: 'Client requirements', exact: true });
+  let drawer = await newRequirement(page);
   const text = 'Looking for a ready 2 bedroom apartment in Dubai Marina, budget up to AED 2.8m, for self use. Must have parking. Purchase by 2026-12-01.';
   await drawer.getByRole('textbox', { name: 'Sales conversation / notes', exact: true }).fill(text);
   await drawer.getByRole('button', { name: 'Extract requirements', exact: true }).click();

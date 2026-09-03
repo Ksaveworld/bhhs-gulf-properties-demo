@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { openPropertyLibrary } from './helpers';
 import type { ClientRequirement, Dataset, ListingTransactionLink, Transaction } from '../../shared/types';
 
 const clientIds = (scope: Locator) => scope.locator('article[data-client-id]').evaluateAll(rows => rows.map(row => row.getAttribute('data-client-id')));
@@ -7,8 +8,7 @@ const clarification = (drawer: Locator) => drawer.getByRole('region', { name: 'C
 const client = (drawer: Locator, id: string) => drawer.locator(`article[data-client-id="${id}"]`);
 
 async function ready(page: Page) {
-  await page.goto('/');
-  await expect(page.getByTestId('result-count')).toHaveText('9');
+  await openPropertyLibrary(page);
 }
 
 async function openListing(page: Page, id: string, tab: 'clients' | 'evidence') {

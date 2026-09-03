@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test';
+import { openPropertyLibrary } from './helpers';
 import type { ClientRequirement, Dataset } from '../../shared/types';
 
 const requirementId = 'DEMO-AREA-R-001';
@@ -37,13 +38,12 @@ async function loadRequirement(page: Page, dataset: Dataset, requirement: Client
   await page.route('**/api/dataset', route => route.fulfill({ json: {
     ...dataset, client_requirements: [requirement], match_reference: [],
   } }));
-  await page.goto('/');
-  await expect(page.getByTestId('result-count')).toHaveText('9');
+  await openPropertyLibrary(page);
 }
 
 async function viewRequirementProperties(page: Page) {
   await page.getByRole('button', { name: /Clients & needs/ }).click();
-  const row = page.locator('.client-row').filter({ hasText: requirementId });
+  const row = page.locator(`.client-row[data-requirement-id="${requirementId}"]`);
   await row.getByRole('button', { name: /View properties/ }).click();
 }
 

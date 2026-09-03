@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Button, Descriptions, Drawer, Empty, Space, Tabs, Tag } from 'antd';
+import { Alert, Button, Descriptions, Drawer, Empty, Select, Space, Tabs, Tag } from 'antd';
 import type {
   ClientRequirement,
   Dataset,
@@ -8,7 +8,7 @@ import type {
   SourceRecord,
   Transaction,
 } from '../../../../shared/types';
-import { buildClientGroups, countClientGroups, type ClientGroup, type RequirementAssessment } from '../../../../shared/client-priorities';
+import { buildClientGroups, countClientGroups, CLIENT_SORT_DESCRIPTIONS, type ClientSort, type ClientGroup, type RequirementAssessment } from '../../../../shared/client-priorities';
 import { getPriceEvidence } from '../../../../shared/pricing';
 import './PropertyDetail.css';
 
@@ -294,7 +294,8 @@ function ClientCard({ client, listing, onViewClient }: { client: ClientGroup; li
 }
 
 function PotentialClients({ listing, requirements, onViewClient }: Pick<PropertyDetailProps, 'requirements' | 'onViewClient'> & { listing: ListingSnapshot }) {
-  const clients = buildClientGroups(listing, requirements);
+  const [sort, setSort] = useState<ClientSort>('conditions');
+  const clients = buildClientGroups(listing, requirements, sort);
   const counts = countClientGroups(clients);
   const renderGroup = (status: ClientGroup['status']) => clients.filter(client => client.status === status).map(client => <ClientCard key={client.client_id} client={client} listing={listing} onViewClient={onViewClient} />);
   return <div className="pd-tab-content">
@@ -305,9 +306,18 @@ function PotentialClients({ listing, requirements, onViewClient }: Pick<Property
       <div><strong data-testid="client-count-total">{counts.total}</strong><span>unique clients · {requirements.length} requirements</span></div>
     </div>
     <p className="pd-intro">Start with clients whose recorded conditions are met. Budget and stated intent support a follow-up conversation; no sale probability or combined score is assigned.</p>
+    {clients.length > 0 && <div className="pd-client-sort">
+      <label htmlFor="pd-client-sort">Sort clients</label>
+      <Select id="pd-client-sort" aria-label="Sort clients" value={sort} onChange={setSort} options={[
+        { value: 'conditions', label: 'Condition status' },
+        { value: 'budget', label: 'Budget coverage' },
+        { value: 'purchase_date', label: 'Earliest purchase date' },
+      ]} />
+      <p className="pd-field-note" role="status">{CLIENT_SORT_DESCRIPTIONS[sort]}</p>
+    </div>}
     {!clients.length ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No client requirements available. Add or import a sales-reviewed requirement to compare." /> : <>
-      <section className="pd-client-group" aria-label="Customers with conditions met"><h3>Conditions met ({counts.match} clients)</h3>{counts.match ? renderGroup('match') : <p className="pd-field-note">No clients have all recorded conditions confirmed for this property. Review the open questions below.</p>}</section>
-      <section className="pd-client-group" aria-label="Customers needing clarification"><h3>Needs clarification ({counts.review} clients)</h3>{counts.review ? renderGroup('review') : <p className="pd-field-note">No clients in this group.</p>}</section>
+      <section className="pd-client-group" aria-label="Customers with conditions met"><h3>Conditions met ({counts.match} client{counts.match === 1 ? '' : 's'})</h3>{counts.match ? renderGroup('match') : <p className="pd-field-note">No clients have all recorded conditions confirmed for this property. Review the open questions below.</p>}</section>
+      <section className="pd-client-group" aria-label="Customers needing clarification"><h3>Needs clarification ({counts.review} client{counts.review === 1 ? '' : 's'})</h3>{counts.review ? renderGroup('review') : <p className="pd-field-note">No clients in this group.</p>}</section>
       {counts.excluded > 0 && <details className="pd-conflict-clients"><summary>Hard condition conflicts ({counts.excluded} client{counts.excluded === 1 ? '' : 's'})</summary><p className="pd-field-note">These clients are excluded from the conditions-met count. Review each conflict before considering a follow-up.</p><div className="pd-client-group">{renderGroup('excluded')}</div></details>}
     </>}
   </div>;

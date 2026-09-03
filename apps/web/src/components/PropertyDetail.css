@@ -118,6 +118,9 @@
 .property-detail .pd-client-footer .ant-btn { height: auto; min-height: 34px; padding-top: 7px; padding-bottom: 7px; white-space: normal; text-align: left; color: var(--pd-wine); border-color: #cdb7c4; font-size: 12px; }
 
 /* A person appears once; every requirement retains its own evidence. */
+.property-detail .pd-client-sort { display: grid; grid-template-columns: auto minmax(180px, 230px); justify-content: start; align-items: center; gap: 9px 14px; }
+.property-detail .pd-client-sort label { font-size: 12px; font-weight: 600; }
+.property-detail .pd-client-sort p { grid-column: 1 / -1; }
 .property-detail .pd-client-counts { display: grid; grid-template-columns: repeat(3, 1fr) 1.45fr; gap: 14px; padding: 18px 20px; border: 1px solid var(--pd-line); background: #fff; border-radius: 6px; }
 .property-detail .pd-client-counts > div { display: flex; flex-direction: column; gap: 5px; }
 .property-detail .pd-client-counts strong { font-family: Georgia, serif; font-size: 27px; font-weight: 400; color: var(--pd-wine); }

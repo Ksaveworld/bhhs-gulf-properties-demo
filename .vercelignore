@@ -1,0 +1,27 @@
+# Upload only the sources needed to build the public synthetic demo.
+*
+!apps
+!apps/web
+!apps/web/src
+!apps/web/src/**
+!apps/web/index.html
+!apps/web/vite.config.ts
+!apps/api
+!apps/api/ingest.mjs
+!shared
+!shared/**
+!data
+!data/demo
+!data/demo/dataset.json
+!data/templates
+!data/templates/schema.json
+!tools
+!tools/export-public-demo.mjs
+!package.json
+!package-lock.json
+!tsconfig.json
+!playwright.config.ts
+!vercel.json
+!.vercelignore
+**/.env*
+**/node_modules/**

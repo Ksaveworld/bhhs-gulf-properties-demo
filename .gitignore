@@ -8,6 +8,7 @@ __pycache__/
 .env.*
 !.env.example
 .work/
+.vercel/
 tmp/
 *.log
 *.inspect.ndjson

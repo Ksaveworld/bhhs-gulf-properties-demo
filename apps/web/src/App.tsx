@@ -36,7 +36,7 @@ export function App() {
     } catch {
       if (controller.current === current) {
         setDataset(null);
-        setError('The property data could not be loaded. Check that the local data service is running, then retry.');
+        setError('The property data could not be loaded. Retry loading or check the data source.');
       }
     } finally { clearTimeout(timeout); if (controller.current === current) setBusy(false); }
   }
@@ -71,10 +71,10 @@ export function App() {
         <div className="brand"><span className="brand-circle">BHHS</span><span className="brand-small">BERKSHIRE HATHAWAY<br />HOMESERVICES</span><strong>Gulf Properties</strong></div>
         <div className="workspace-label">SALES WORKSPACE</div>
         <nav aria-label="Main navigation"><button className={view === 'properties' ? 'nav-item active' : 'nav-item'} onClick={() => setView('properties')}><HomeOutlined /> Property library <span>{listings.length || '—'}</span></button><button className={view === 'clients' ? 'nav-item active' : 'nav-item'} onClick={() => setView('clients')}><TeamOutlined /> Clients & needs <span>{requirements.length || '—'}</span></button></nav>
-        <div className="sidebar-bottom"><button className="nav-item" onClick={() => setDataOpen(true)}><DatabaseOutlined /> Data & sources</button><div className="sales-profile"><span>GP</span><div><strong>Sales workspace</strong><small>Local demonstration</small></div></div></div>
+        <div className="sidebar-bottom"><button className="nav-item" onClick={() => setDataOpen(true)}><DatabaseOutlined /> Data & sources</button><div className="sales-profile"><span>GP</span><div><strong>Sales workspace</strong><small>Sales demonstration</small></div></div></div>
       </aside>
       <div className="workspace-main">
-        <header className="topbar"><span>Gulf Properties <span className="breadcrumb-slash">/</span> {view === 'properties' ? 'Property library' : 'Clients & needs'}</span><div className="topbar-right"><span className="local-status"><i /> Local workspace</span><Tag color="gold">{dataset?.meta.mode === 'product' ? 'Product dataset' : 'Demo dataset'}</Tag></div></header>
+        <header className="topbar"><span>Gulf Properties <span className="breadcrumb-slash">/</span> {view === 'properties' ? 'Property library' : 'Clients & needs'}</span><div className="topbar-right"><span className="local-status"><i /> Sales workspace</span><Tag color="gold">{dataset?.meta.mode === 'product' ? 'Product dataset' : 'Demo dataset'}</Tag></div></header>
         <main className="main-content">
           <div className="page-heading"><div><p className="eyebrow">{view === 'properties' ? 'FROM CLIENT NEEDS TO THE RIGHT PROPERTY' : 'A CLEARER PICTURE OF EVERY CLIENT'}</p><h1>{view === 'properties' ? 'Property library' : 'Clients & needs'}</h1><p className="heading-description">{view === 'properties' ? 'Explore listings, compare price evidence, and find the right client fit.' : 'Review stated requirements and explore suitable properties together.'}</p></div><Button aria-label="Client requirements" type="primary" size="large" icon={<SearchOutlined />} onClick={() => setEditorOpen(true)}>Client requirements</Button></div>
           <div className="evidence-banner"><span className="banner-dot" /><span>{dataset?.meta.mode === 'product' ? 'Product data · Only approved, reviewed records are shown. Source limitations remain visible.' : 'Demonstration only · Properties, prices, transactions and clients are fictional samples.'}</span><button onClick={() => setDataOpen(true)}>View data notes <ArrowRightOutlined /></button></div>
@@ -101,7 +101,7 @@ export function App() {
       {dataset && <PropertyDetail listing={selected} dataset={dataset} requirements={requirements} onClose={() => setSelectedId(null)} onViewClient={viewClient} />}
       <Modal title="Data & sources" open={dataOpen} onCancel={() => setDataOpen(false)} footer={<Button onClick={() => setDataOpen(false)}>Close</Button>} width={670}>
         <Alert showIcon type="info" message={dataset?.meta.label ?? 'Dataset not loaded'} description="The rule assistant organizes stated needs. Matching compares recorded conditions; it does not predict a sale or infer a client's assets." />
-        <dl className="data-notes"><dt>Data mode</dt><dd>{dataset?.meta.mode ?? 'Unavailable'}</dd><dt>Loaded</dt><dd>{dataset?.meta.loaded_at ?? 'Unavailable'}</dd><dt>Source records</dt><dd>{dataset?.listing_snapshots.length ?? 0} listing snapshots · {dataset?.transactions.length ?? 0} transactions · {dataset?.client_requirements.length ?? 0} requirements</dd><dt>Session edits</dt><dd>Requirements entered here are temporary and clear on page reload.</dd><dt>Product replacement</dt><dd>Product A supplies listings, transactions and their evidence links. Product B supplies de-identified requirements and reviewed match references.</dd></dl>
+        <dl className="data-notes"><dt>Data mode</dt><dd>{dataset?.meta.mode ?? 'Unavailable'}</dd><dt>Dataset prepared</dt><dd>{dataset?.meta.loaded_at ?? 'Unavailable'}</dd><dt>Source records</dt><dd>{dataset?.listing_snapshots.length ?? 0} listing snapshots · {dataset?.transactions.length ?? 0} transactions · {dataset?.client_requirements.length ?? 0} requirements</dd><dt>Data refresh</dt><dd>Refresh reloads the configured dataset. Published demos use the snapshot prepared for that release.</dd><dt>Session edits</dt><dd>Requirements entered here are temporary and clear on page reload.</dd><dt>Product replacement</dt><dd>Product A supplies listings, transactions and their evidence links. Product B supplies de-identified requirements and reviewed match references.</dd></dl>
         {!!dataset?.meta.warnings.length && <Alert type="warning" message="Data review notes" description={<ul>{dataset.meta.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>} />}
       </Modal>
     </div>

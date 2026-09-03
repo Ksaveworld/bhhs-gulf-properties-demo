@@ -269,6 +269,13 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
 .client-result > strong { display: block; margin: 3px 0 7px; color: #796477; font-family: Georgia, 'Times New Roman', serif; font-size: 20px; font-weight: 400; }
 .client-result > span { display: block; color: #979ca8; font-size: 10px; }
 .client-result .ant-btn { height: 32px; margin-top: 13px; font-size: 10px; }
+.local-storage-notice { display: flex; flex-wrap: wrap; gap: 7px 16px; margin: 14px 0; color: #756b78; font-size: 11px; line-height: 1.6; }
+.local-storage-notice strong { color: #55223f; }
+.local-storage-alert { margin: 14px 0; }
+.local-copy-controls { display: flex; flex-direction: column; align-items: flex-start; gap: 7px; margin: 13px 0; }
+.local-copy-controls .ant-tag { white-space: normal; line-height: 1.7; margin: 0; }
+.local-copy-controls > div { display: flex; flex-wrap: wrap; gap: 7px; }
+.local-copy-controls .ant-btn { font-size: 11px; }
 
 /* Sales edits the extracted request before applying it to the shared filters. */
 .drawer-actions { display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: 10px; padding-top: 12px; }

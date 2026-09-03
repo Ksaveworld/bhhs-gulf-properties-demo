@@ -1,4 +1,4 @@
-/** CSV v1 keys are retained verbatim. Null means undisclosed, never zero or false. */
+/** CSV keys are retained verbatim. v1.1 adds optional client area_basis; v1 remains readable. */
 export type DataKind = 'real_public' | 'real_authorized' | 'demo';
 export type Currency = 'AED' | 'USD' | 'EUR' | 'GBP' | 'other';
 export type AreaUnit = 'sqm' | 'sqft';
@@ -95,6 +95,7 @@ export interface ClientRequirement extends SourceRecord {
   bedrooms_min: number | null;
   area_min: number | null;
   area_unit: AreaUnit | null;
+  area_basis?: AreaBasis | null;
   purchase_purpose: 'self_use' | 'investment' | 'mixed' | 'unknown';
   market_preference: MarketSegment | 'either';
   purchase_by: string | null;

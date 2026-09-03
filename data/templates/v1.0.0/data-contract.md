@@ -1,4 +1,4 @@
-# BHHS Demo 数据接入契约 v1.1.0
+# BHHS Demo 数据接入契约 v1.0.0
 
 用户已确定主链路与产品/开发分工。本契约是控制塔提供的填写与接入格式，不代表客户已确认所有字段、阈值或预测能力。
 
@@ -15,7 +15,7 @@
 ## 导入约定
 
 - 英文 key 是程序接口；Excel 第 5 行和 CSV 第 1 行一致。Excel 数据从第 6 行开始，忽略全空行。
-- `schema.json` 定义类型、要求、枚举、说明；它是字段契约文件，不是应用数据库。字段变更需同时维护导入器、筛选与匹配；运行验收另见开发交接。
+- `schema.json` 定义类型、要求、枚举、说明；它是字段契约文件，不是应用数据库或已运行的校验器。应用导入器由开发任务实现。
 - 文本使用 UTF-8；多值用 `|` 分隔，应用内可转换成数组。未知用空单元格/JSON null，未知枚举仅在给定选项允许时使用 unknown。
 - 数值不能夹币种/单位/千分位文字；Excel 日期按日期值读取、显示 YYYY-MM-DD。datetime 是含时区 ISO 8601 字符串，避免丢失时区。
 - 完整日期未披露时不要补造月日；将原始季度/年份放到备注并保留来源。
@@ -46,19 +46,6 @@
 - 产品 A 先给一组完整挂牌，能够支持区域、价格、面积、户型筛选。随后补有历史、只有可比、没有可用价格证据、重复挂牌等案例；缺口明确列出。
 - 产品 B 先给授权脱敏需求或明确演示需求，再补一客多房、一房多客、预算冲突、无匹配和缺字段等人工参考结果。
 - 数据数量不作为本次新承诺；先保证案例覆盖和来源可追溯。
-
-## 客户面积口径与旧版兼容
-
-- v1.1.0 在客户需求的 `area_unit` 后新增选填 `area_basis`，可选 `internal`、`gross`、`built_up`、`land`、`unknown`。只填写客户明确说明的口径，不从候选房源反向补齐。
-- 明确字段优先用于结构化解释。字段为空或旧记录没有此字段时，兼容 `hard_constraints` 中已有英文口径表达，如 `area basis: built_up`；不要求为旧 CSV/JSON 强行补列或重填。
-- 字段和可解析原文表达不同口径时保留双方内容，标记冲突并向产品/销售确认；不能静默覆盖原文、选择有利口径或把冲突算作满足。
-- 显式 `unknown` 表示口径待确认，不视为匹配，也不被文本或房源口径自动替换。两种来源都缺失时同样待确认；面积单位换算不能代替口径核对。
-
-## 版本与空模板
-
-- 当前 `data/templates/` 顶层入口与 `data/templates/v1.1.0/` 提供相同的 v1.1.0 schema、五张空 CSV 和字段字典。
-- 原 v1.0.0 schema、五张空 CSV、字典及契约保存在 `data/templates/v1.0.0/`，原 v1 Excel 保持不变。
-- 本次新版 Excel 另存为 `outputs/area-basis-v1.1.0/BHHS_数据字段模板_v1.1.0.xlsx`。所有填写区为空，字典示例仍只是独立格式说明。
 
 ## 字段字典
 
@@ -165,9 +152,8 @@
 | `preferred_areas` | 偏好区域 | multi_text | 选填 | 多值用 \| 分隔；保留客户原话及与区域字典的映射。  |
 | `property_types` | 偏好物业类型 | multi_text | 选填 | 使用房源物业类型英文 key，多值用 \| 分隔。  |
 | `bedrooms_min` | 最少卧室数 | integer | 选填 | Studio 为 0，未知留空。  |
-| `area_min` | 最小面积 | number | 选填 | 同时记录单位；已明确的客户面积口径填 area_basis，未明确时留空或 unknown，不能从候选房源反向补齐。  |
+| `area_min` | 最小面积 | number | 选填 | 同时记录单位；面积口径不清时在硬条件/备注说明。  |
 | `area_unit` | 面积单位 | enum | 条件必填 | 有最小面积时填写。 可选：sqm / sqft |
-| `area_basis` | 客户面积口径 | enum | 选填 | 客户明确说明的面积口径。新字段优先；空字段兼容 hard_constraints 中的英文口径表达，如 area basis: built_up。字段与文本冲突需确认；unknown 不算已知口径，不能回填候选房源口径。 可选：internal / gross / built_up / land / unknown |
 | `purchase_purpose` | 购买目的 | enum | 必填 | 客户主动说明的目的；未知用 unknown。 可选：self_use / investment / mixed / unknown |
 | `market_preference` | 现房期房偏好 | enum | 必填 | 客户未表态填 unknown，不把未表态当作均可。 可选：ready / off_plan / either / unknown |
 | `purchase_by` | 计划购买日期 | date | 选填 | 仅明确完整日期时填；“尽快”“本季度”保留在原文/备注。  |

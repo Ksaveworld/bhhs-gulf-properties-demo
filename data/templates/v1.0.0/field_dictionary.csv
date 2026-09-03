@@ -81,9 +81,8 @@
 04_客户需求,产品 B,preferred_areas,偏好区域,multi_text,选填,多值用 | 分隔；保留客户原话及与区域字典的映射。,DEMO-AREA-A|DEMO-AREA-B,
 04_客户需求,产品 B,property_types,偏好物业类型,multi_text,选填,使用房源物业类型英文 key，多值用 | 分隔。,apartment|penthouse,
 04_客户需求,产品 B,bedrooms_min,最少卧室数,integer,选填,Studio 为 0，未知留空。,2,
-04_客户需求,产品 B,area_min,最小面积,number,选填,同时记录单位；已明确的客户面积口径填 area_basis，未明确时留空或 unknown，不能从候选房源反向补齐。,100,
+04_客户需求,产品 B,area_min,最小面积,number,选填,同时记录单位；面积口径不清时在硬条件/备注说明。,100,
 04_客户需求,产品 B,area_unit,面积单位,enum,条件必填,有最小面积时填写。,sqm,sqm | sqft
-04_客户需求,产品 B,area_basis,客户面积口径,enum,选填,客户明确说明的面积口径。新字段优先；空字段兼容 hard_constraints 中的英文口径表达，如 area basis: built_up。字段与文本冲突需确认；unknown 不算已知口径，不能回填候选房源口径。,built_up,internal | gross | built_up | land | unknown
 04_客户需求,产品 B,purchase_purpose,购买目的,enum,必填,客户主动说明的目的；未知用 unknown。,unknown,self_use | investment | mixed | unknown
 04_客户需求,产品 B,market_preference,现房期房偏好,enum,必填,客户未表态填 unknown，不把未表态当作均可。,unknown,ready | off_plan | either | unknown
 04_客户需求,产品 B,purchase_by,计划购买日期,date,选填,仅明确完整日期时填；“尽快”“本季度”保留在原文/备注。,示例：2026-12-01,

@@ -10,6 +10,7 @@ __pycache__/
 .work/
 tmp/
 *.log
+*.inspect.ndjson
 data/incoming/
 data/private/
 reference/

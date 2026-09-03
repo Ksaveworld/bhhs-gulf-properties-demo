@@ -1,0 +1,1309 @@
+{
+  "version": "1.0.0",
+  "purpose": "BHHS Demo 产品数据交付与开发接入模板",
+  "emptyValue": "CSV 空单元格 / JSON null；不得用 0 代替未知",
+  "multiValueDelimiter": "|",
+  "dateFormat": "YYYY-MM-DD",
+  "datetimeFormat": "ISO 8601 with timezone",
+  "excelDataStartRow": 6,
+  "excelKeyRow": 5,
+  "tables": [
+    {
+      "key": "listing_snapshots",
+      "sheet": "01_房源挂牌",
+      "owner": "产品 A",
+      "rowRule": "一行是一条挂牌在一个采集时刻的快照；同一挂牌更新另建 snapshot_id，listing_id 保持稳定。",
+      "fields": [
+        {
+          "key": "snapshot_id",
+          "label": "挂牌快照 ID",
+          "type": "text",
+          "required": "必填",
+          "description": "本表唯一且稳定；不得因为改价格复用同一个快照 ID。",
+          "example": "DEMO-LS-001",
+          "options": []
+        },
+        {
+          "key": "listing_id",
+          "label": "挂牌 ID",
+          "type": "text",
+          "required": "必填",
+          "description": "同一平台同一挂牌使用同一 ID；不同平台挂牌不要仅凭相似描述合并。",
+          "example": "DEMO-L-001",
+          "options": []
+        },
+        {
+          "key": "property_id",
+          "label": "内部房屋 ID",
+          "type": "text",
+          "required": "选填",
+          "description": "只有可靠证据识别同一物理房屋时才跨记录共用；无法识别留空。",
+          "example": "DEMO-P-001",
+          "options": []
+        },
+        {
+          "key": "title",
+          "label": "房源标题",
+          "type": "text",
+          "required": "必填",
+          "description": "可复用来源标题；不得加入未披露的地段、设施或景观承诺。",
+          "example": "演示公寓 A",
+          "options": []
+        },
+        {
+          "key": "area_name",
+          "label": "区域或社区",
+          "type": "text",
+          "required": "必填",
+          "description": "沿用来源名称；不同来源别名由产品给映射，不自行视为同一区域。",
+          "example": "DEMO-AREA",
+          "options": []
+        },
+        {
+          "key": "building_name",
+          "label": "楼宇或项目名称",
+          "type": "text",
+          "required": "选填",
+          "description": "来源中的楼宇/项目名称；同楼不等于同一套房。",
+          "example": "DEMO-BUILDING",
+          "options": []
+        },
+        {
+          "key": "unit_ref",
+          "label": "单元或房屋标识",
+          "type": "text",
+          "required": "选填",
+          "description": "仅填来源可靠披露且可用于此 Demo 的单元标识；没有则留空。",
+          "example": "DEMO-UNIT-01",
+          "options": []
+        },
+        {
+          "key": "property_type",
+          "label": "物业类型",
+          "type": "enum",
+          "required": "必填",
+          "description": "与现房/期房和挂牌状态分开。",
+          "example": "apartment",
+          "options": [
+            "apartment",
+            "villa",
+            "townhouse",
+            "penthouse",
+            "land",
+            "other",
+            "unknown"
+          ]
+        },
+        {
+          "key": "bedrooms",
+          "label": "卧室数",
+          "type": "integer",
+          "required": "选填",
+          "description": "Studio 填 0；未披露留空；不要填“未知”到数值列。",
+          "example": "2",
+          "options": []
+        },
+        {
+          "key": "area_value",
+          "label": "面积数值",
+          "type": "number",
+          "required": "条件必填",
+          "description": "如来源披露面积则填数值，同时填写单位和面积口径。",
+          "example": "120",
+          "options": []
+        },
+        {
+          "key": "area_unit",
+          "label": "面积单位",
+          "type": "enum",
+          "required": "条件必填",
+          "description": "有面积数值必须填单位；开发端可换算但不能静默改变面积口径。",
+          "example": "sqm",
+          "options": [
+            "sqm",
+            "sqft"
+          ]
+        },
+        {
+          "key": "area_basis",
+          "label": "面积口径",
+          "type": "enum",
+          "required": "条件必填",
+          "description": "有面积数值必须给出口径；不明时填 unknown。",
+          "example": "unknown",
+          "options": [
+            "internal",
+            "gross",
+            "built_up",
+            "land",
+            "unknown"
+          ]
+        },
+        {
+          "key": "market_segment",
+          "label": "现房或期房",
+          "type": "enum",
+          "required": "必填",
+          "description": "反映物业当前状态，与新挂牌/旧挂牌不同。",
+          "example": "ready",
+          "options": [
+            "ready",
+            "off_plan",
+            "unknown"
+          ]
+        },
+        {
+          "key": "listing_status",
+          "label": "挂牌状态",
+          "type": "enum",
+          "required": "必填",
+          "description": "active 在售；withdrawn 下架；sold 仅有成交证据时使用；下架不能自动判为成交。",
+          "example": "active",
+          "options": [
+            "active",
+            "withdrawn",
+            "sold",
+            "unknown"
+          ]
+        },
+        {
+          "key": "asking_price",
+          "label": "挂牌价格",
+          "type": "number",
+          "required": "条件必填",
+          "description": "仅填当前挂牌价；未披露留空。租金不可作为出售价格填入本表。",
+          "example": "2000000",
+          "options": []
+        },
+        {
+          "key": "currency",
+          "label": "价格币种",
+          "type": "enum",
+          "required": "条件必填",
+          "description": "有价格必填，首版按原始币种保留；跨币种比较需要另外提供汇率来源和日期。",
+          "example": "AED",
+          "options": [
+            "AED",
+            "USD",
+            "EUR",
+            "GBP",
+            "other"
+          ]
+        },
+        {
+          "key": "listed_at",
+          "label": "首次挂牌日期",
+          "type": "date",
+          "required": "选填",
+          "description": "来源未披露则留空，不以首次抓取日期冒充。",
+          "example": "2026-09-01",
+          "options": []
+        },
+        {
+          "key": "availability_date",
+          "label": "可交付或入住日期",
+          "type": "date",
+          "required": "选填",
+          "description": "仅填明确日期；仅有季度/年份时记录到备注，不补造月日。",
+          "example": "2026-12-01",
+          "options": []
+        },
+        {
+          "key": "amenities",
+          "label": "已披露设施与特征",
+          "type": "multi_text",
+          "required": "选填",
+          "description": "多值用 | 分隔，例 pool|parking；客户要求的设施不能反向填成房源已具备。",
+          "example": "pool|parking",
+          "options": []
+        },
+        {
+          "key": "evidence_excerpt",
+          "label": "关键事实证据摘录",
+          "type": "text",
+          "required": "选填",
+          "description": "支持价格、户型、状态等关键字段的简短原文；注明未覆盖字段。",
+          "example": "演示格式说明，不是原文证据",
+          "options": []
+        },
+        {
+          "key": "data_kind",
+          "label": "数据性质",
+          "type": "enum",
+          "required": "必填",
+          "description": "真实公开、真实授权与演示数据必须区分；不能以公开可见替代使用许可。",
+          "example": "demo",
+          "options": [
+            "real_public",
+            "real_authorized",
+            "demo"
+          ]
+        },
+        {
+          "key": "source_name",
+          "label": "来源名称",
+          "type": "text",
+          "required": "必填",
+          "description": "网站、登记机关或授权脱敏资料名称；演示数据填“演示样例”。",
+          "example": "演示样例",
+          "options": []
+        },
+        {
+          "key": "source_ref",
+          "label": "来源链接或资料编号",
+          "type": "text",
+          "required": "必填",
+          "description": "公开数据填可追溯原文 URL；内部资料填脱敏文件编号，不填访问令牌或个人身份信息。",
+          "example": "DEMO-SOURCE-001",
+          "options": []
+        },
+        {
+          "key": "source_date",
+          "label": "来源发布日期",
+          "type": "date",
+          "required": "选填",
+          "description": "仅填原文明确的完整日期；不把采集日期、登记日期或估计日期填在这里。",
+          "example": "2026-09-03",
+          "options": []
+        },
+        {
+          "key": "captured_at",
+          "label": "采集或整理时间",
+          "type": "datetime",
+          "required": "必填",
+          "description": "实际采集/整理时间，采用 ISO 8601 且含时区。",
+          "example": "2026-09-03T10:00:00+08:00",
+          "options": []
+        },
+        {
+          "key": "verification_status",
+          "label": "核验状态",
+          "type": "enum",
+          "required": "必填",
+          "description": "verified 表示产品已核验相应字段；source-backed 不自动意味着可用。",
+          "example": "needs_review",
+          "options": [
+            "verified",
+            "needs_review",
+            "conflict"
+          ]
+        },
+        {
+          "key": "usage_status",
+          "label": "使用许可状态",
+          "type": "enum",
+          "required": "必填",
+          "description": "approved 表示已确认可用于本 Demo；pending 待确认；restricted 不可导入演示。",
+          "example": "pending",
+          "options": [
+            "approved",
+            "pending",
+            "restricted"
+          ]
+        },
+        {
+          "key": "reviewed_by",
+          "label": "核验人",
+          "type": "text",
+          "required": "条件必填",
+          "description": "verification_status 为 verified 时填写实际核验人；不得默认已核验。",
+          "example": "产品 A",
+          "options": []
+        },
+        {
+          "key": "notes",
+          "label": "缺失与限制说明",
+          "type": "text",
+          "required": "选填",
+          "description": "记录未披露字段、冲突、过期风险等；未知数值留空而不是填 0。",
+          "example": "格式示例，非真实数据",
+          "options": []
+        }
+      ]
+    },
+    {
+      "key": "transactions",
+      "sheet": "02_成交记录",
+      "owner": "产品 A",
+      "rowRule": "一行是一条来源中的交易记录；可比关联放到下一表，不能为多个关联重复创建同一交易。",
+      "fields": [
+        {
+          "key": "transaction_id",
+          "label": "内部交易 ID",
+          "type": "text",
+          "required": "必填",
+          "description": "本表唯一；交易 ID 不能当作房屋 ID。",
+          "example": "DEMO-T-001",
+          "options": []
+        },
+        {
+          "key": "source_record_id",
+          "label": "来源交易记录 ID",
+          "type": "text",
+          "required": "选填",
+          "description": "保留原始登记/来源编号，用于去重；未知留空。",
+          "example": "DEMO-REG-001",
+          "options": []
+        },
+        {
+          "key": "property_id",
+          "label": "内部房屋 ID",
+          "type": "text",
+          "required": "选填",
+          "description": "有独立可靠的物理房屋身份依据才填写；不能仅以楼宇、面积匹配生成。",
+          "example": "DEMO-P-001",
+          "options": []
+        },
+        {
+          "key": "record_type",
+          "label": "记录类型",
+          "type": "enum",
+          "required": "必填",
+          "description": "出售、租赁、抵押、赠与分别记录；价格对比首版只使用符合条件的出售记录。",
+          "example": "sale",
+          "options": [
+            "sale",
+            "lease",
+            "mortgage",
+            "gift",
+            "other",
+            "unknown"
+          ]
+        },
+        {
+          "key": "transaction_scope",
+          "label": "交易范围",
+          "type": "enum",
+          "required": "必填",
+          "description": "整套、部分份额、打包交易要区分，不能直接混算单套价格。",
+          "example": "whole_unit",
+          "options": [
+            "whole_unit",
+            "partial_share",
+            "bulk",
+            "unknown"
+          ]
+        },
+        {
+          "key": "transaction_date",
+          "label": "成交或登记日期",
+          "type": "date",
+          "required": "必填",
+          "description": "以来源口径为准，date_basis 指明这是成交日期还是登记日期；缺失时留空并标待核验，不进入时间轴。",
+          "example": "2026-08-01",
+          "options": []
+        },
+        {
+          "key": "date_basis",
+          "label": "日期口径",
+          "type": "enum",
+          "required": "必填",
+          "description": "source_date 另存来源发布时间。",
+          "example": "registration",
+          "options": [
+            "contract",
+            "registration",
+            "unknown"
+          ]
+        },
+        {
+          "key": "amount",
+          "label": "交易金额",
+          "type": "number",
+          "required": "必填",
+          "description": "以原始交易金额填写；不要填估值、挂牌价或 AI 推断。",
+          "example": "1800000",
+          "options": []
+        },
+        {
+          "key": "currency",
+          "label": "交易币种",
+          "type": "enum",
+          "required": "必填",
+          "description": "按来源原币种填写。",
+          "example": "AED",
+          "options": [
+            "AED",
+            "USD",
+            "EUR",
+            "GBP",
+            "other"
+          ]
+        },
+        {
+          "key": "area_name",
+          "label": "区域或社区",
+          "type": "text",
+          "required": "必填",
+          "description": "沿用来源名称；不同来源别名由产品给映射，不自行视为同一区域。",
+          "example": "DEMO-AREA",
+          "options": []
+        },
+        {
+          "key": "building_name",
+          "label": "楼宇或项目名称",
+          "type": "text",
+          "required": "选填",
+          "description": "来源中的楼宇/项目名称；同楼不等于同一套房。",
+          "example": "DEMO-BUILDING",
+          "options": []
+        },
+        {
+          "key": "unit_ref",
+          "label": "单元或房屋标识",
+          "type": "text",
+          "required": "选填",
+          "description": "仅填来源可靠披露且可用于此 Demo 的单元标识；没有则留空。",
+          "example": "DEMO-UNIT-01",
+          "options": []
+        },
+        {
+          "key": "property_type",
+          "label": "物业类型",
+          "type": "enum",
+          "required": "必填",
+          "description": "与现房/期房和挂牌状态分开。",
+          "example": "apartment",
+          "options": [
+            "apartment",
+            "villa",
+            "townhouse",
+            "penthouse",
+            "land",
+            "other",
+            "unknown"
+          ]
+        },
+        {
+          "key": "bedrooms",
+          "label": "卧室数",
+          "type": "integer",
+          "required": "选填",
+          "description": "Studio 填 0；未披露留空；不要填“未知”到数值列。",
+          "example": "2",
+          "options": []
+        },
+        {
+          "key": "area_value",
+          "label": "面积数值",
+          "type": "number",
+          "required": "条件必填",
+          "description": "如来源披露面积则填数值，同时填写单位和面积口径。",
+          "example": "120",
+          "options": []
+        },
+        {
+          "key": "area_unit",
+          "label": "面积单位",
+          "type": "enum",
+          "required": "条件必填",
+          "description": "有面积数值必须填单位；开发端可换算但不能静默改变面积口径。",
+          "example": "sqm",
+          "options": [
+            "sqm",
+            "sqft"
+          ]
+        },
+        {
+          "key": "area_basis",
+          "label": "面积口径",
+          "type": "enum",
+          "required": "条件必填",
+          "description": "有面积数值必须给出口径；不明时填 unknown。",
+          "example": "unknown",
+          "options": [
+            "internal",
+            "gross",
+            "built_up",
+            "land",
+            "unknown"
+          ]
+        },
+        {
+          "key": "registration_segment",
+          "label": "登记时现房或期房",
+          "type": "enum",
+          "required": "选填",
+          "description": "交易发生时的现房/期房类别，不自动等于当前挂牌状态。",
+          "example": "ready",
+          "options": [
+            "ready",
+            "off_plan",
+            "unknown"
+          ]
+        },
+        {
+          "key": "evidence_excerpt",
+          "label": "交易证据摘录",
+          "type": "text",
+          "required": "条件必填",
+          "description": "已核验记录需记录金额、日期与类型的证据位置/摘录；内部资料可以使用页码或行号。",
+          "example": "DEMO 记录，非真实成交",
+          "options": []
+        },
+        {
+          "key": "data_kind",
+          "label": "数据性质",
+          "type": "enum",
+          "required": "必填",
+          "description": "真实公开、真实授权与演示数据必须区分；不能以公开可见替代使用许可。",
+          "example": "demo",
+          "options": [
+            "real_public",
+            "real_authorized",
+            "demo"
+          ]
+        },
+        {
+          "key": "source_name",
+          "label": "来源名称",
+          "type": "text",
+          "required": "必填",
+          "description": "网站、登记机关或授权脱敏资料名称；演示数据填“演示样例”。",
+          "example": "演示样例",
+          "options": []
+        },
+        {
+          "key": "source_ref",
+          "label": "来源链接或资料编号",
+          "type": "text",
+          "required": "必填",
+          "description": "公开数据填可追溯原文 URL；内部资料填脱敏文件编号，不填访问令牌或个人身份信息。",
+          "example": "DEMO-SOURCE-001",
+          "options": []
+        },
+        {
+          "key": "source_date",
+          "label": "来源发布日期",
+          "type": "date",
+          "required": "选填",
+          "description": "仅填原文明确的完整日期；不把采集日期、登记日期或估计日期填在这里。",
+          "example": "2026-09-03",
+          "options": []
+        },
+        {
+          "key": "captured_at",
+          "label": "采集或整理时间",
+          "type": "datetime",
+          "required": "必填",
+          "description": "实际采集/整理时间，采用 ISO 8601 且含时区。",
+          "example": "2026-09-03T10:00:00+08:00",
+          "options": []
+        },
+        {
+          "key": "verification_status",
+          "label": "核验状态",
+          "type": "enum",
+          "required": "必填",
+          "description": "verified 表示产品已核验相应字段；source-backed 不自动意味着可用。",
+          "example": "needs_review",
+          "options": [
+            "verified",
+            "needs_review",
+            "conflict"
+          ]
+        },
+        {
+          "key": "usage_status",
+          "label": "使用许可状态",
+          "type": "enum",
+          "required": "必填",
+          "description": "approved 表示已确认可用于本 Demo；pending 待确认；restricted 不可导入演示。",
+          "example": "pending",
+          "options": [
+            "approved",
+            "pending",
+            "restricted"
+          ]
+        },
+        {
+          "key": "reviewed_by",
+          "label": "核验人",
+          "type": "text",
+          "required": "条件必填",
+          "description": "verification_status 为 verified 时填写实际核验人；不得默认已核验。",
+          "example": "产品 A",
+          "options": []
+        },
+        {
+          "key": "notes",
+          "label": "缺失与限制说明",
+          "type": "text",
+          "required": "选填",
+          "description": "记录未披露字段、冲突、过期风险等；未知数值留空而不是填 0。",
+          "example": "格式示例，非真实数据",
+          "options": []
+        }
+      ]
+    },
+    {
+      "key": "listing_transaction_links",
+      "sheet": "03_房源成交关联",
+      "owner": "产品 A",
+      "rowRule": "一行关联一个 listing_id 和一个 transaction_id；同一交易可关联多个挂牌，但必须逐条说明 exact_property 或 comparable。",
+      "fields": [
+        {
+          "key": "link_id",
+          "label": "关联 ID",
+          "type": "text",
+          "required": "必填",
+          "description": "本表唯一；作为匹配参考和价格证据的引用 ID。",
+          "example": "DEMO-LINK-001",
+          "options": []
+        },
+        {
+          "key": "listing_id",
+          "label": "挂牌 ID",
+          "type": "text",
+          "required": "必填",
+          "description": "必须已存在于房源挂牌表。",
+          "example": "DEMO-L-001",
+          "options": []
+        },
+        {
+          "key": "transaction_id",
+          "label": "交易 ID",
+          "type": "text",
+          "required": "必填",
+          "description": "必须已存在于成交记录表。",
+          "example": "DEMO-T-001",
+          "options": []
+        },
+        {
+          "key": "relation_type",
+          "label": "关联类型",
+          "type": "enum",
+          "required": "必填",
+          "description": "exact_property 同一房屋且有证据；comparable 可比对象；unresolved 尚不能判断。",
+          "example": "unresolved",
+          "options": [
+            "exact_property",
+            "comparable",
+            "unresolved"
+          ]
+        },
+        {
+          "key": "match_basis",
+          "label": "关联或可比依据",
+          "type": "text",
+          "required": "必填",
+          "description": "exact_property 需说明稳定单元标识/授权记录如何对应；同楼或面积相近只能作为可比依据。",
+          "example": "待产品核验，不据相似名称合并",
+          "options": []
+        },
+        {
+          "key": "differences",
+          "label": "差异与不可比因素",
+          "type": "text",
+          "required": "选填",
+          "description": "面积口径、楼层、朝向、交易时间、装修、份额等差异。",
+          "example": "房屋身份未确认",
+          "options": []
+        },
+        {
+          "key": "pricing_eligible",
+          "label": "是否可用于价格参考",
+          "type": "enum",
+          "required": "必填",
+          "description": "yes 仅在交易类型、范围、币种、时间、面积口径和来源核验满足首版规则时使用；不代表估值预测。",
+          "example": "pending",
+          "options": [
+            "yes",
+            "no",
+            "pending"
+          ]
+        },
+        {
+          "key": "evidence_refs",
+          "label": "关联证据引用",
+          "type": "text",
+          "required": "必填",
+          "description": "填写两侧来源引用或授权内部资料编号；多个用 | 分隔。",
+          "example": "DEMO-SOURCE-L|DEMO-SOURCE-T",
+          "options": []
+        },
+        {
+          "key": "verification_status",
+          "label": "关联核验状态",
+          "type": "enum",
+          "required": "必填",
+          "description": "此列专门表示关联是否核验，不能继承单条交易的核验状态。",
+          "example": "needs_review",
+          "options": [
+            "verified",
+            "needs_review",
+            "conflict"
+          ]
+        },
+        {
+          "key": "reviewed_by",
+          "label": "关联核验人",
+          "type": "text",
+          "required": "条件必填",
+          "description": "verified 时必须填写。",
+          "example": "产品 A",
+          "options": []
+        },
+        {
+          "key": "reviewed_at",
+          "label": "关联核验时间",
+          "type": "datetime",
+          "required": "条件必填",
+          "description": "verified 时记录带时区的真实时间。",
+          "example": "2026-09-03T11:00:00+08:00",
+          "options": []
+        },
+        {
+          "key": "data_kind",
+          "label": "数据性质",
+          "type": "enum",
+          "required": "必填",
+          "description": "任一关联对象为演示时，关联也必须标 demo。",
+          "example": "demo",
+          "options": [
+            "real_public",
+            "real_authorized",
+            "demo"
+          ]
+        },
+        {
+          "key": "notes",
+          "label": "备注",
+          "type": "text",
+          "required": "选填",
+          "description": "未解决的关联问题和排除原因。",
+          "example": "",
+          "options": []
+        }
+      ]
+    },
+    {
+      "key": "client_requirements",
+      "sheet": "04_客户需求",
+      "owner": "产品 B",
+      "rowRule": "一行是一份客户需求；同一 client_id 可以有不同 requirement_id。仅提供授权脱敏内容。",
+      "fields": [
+        {
+          "key": "requirement_id",
+          "label": "客户需求 ID",
+          "type": "text",
+          "required": "必填",
+          "description": "本表唯一；修改需求版本时保留旧版本并分配新 ID。",
+          "example": "DEMO-R-001",
+          "options": []
+        },
+        {
+          "key": "client_id",
+          "label": "脱敏客户 ID",
+          "type": "text",
+          "required": "必填",
+          "description": "使用脱敏代号，禁止以电话号码、邮箱或真实姓名当作 ID。",
+          "example": "DEMO-C-001",
+          "options": []
+        },
+        {
+          "key": "client_alias",
+          "label": "客户代称",
+          "type": "text",
+          "required": "必填",
+          "description": "例如客户 A；不得填真实联系方式。",
+          "example": "演示客户 A",
+          "options": []
+        },
+        {
+          "key": "sales_owner",
+          "label": "负责销售",
+          "type": "text",
+          "required": "选填",
+          "description": "内部允许使用的姓名或代号；未知留空。",
+          "example": "销售 A",
+          "options": []
+        },
+        {
+          "key": "raw_request",
+          "label": "脱敏需求原文",
+          "type": "text",
+          "required": "必填",
+          "description": "客户主动提供的需求或授权脱敏沟通摘要，作为结构化条件的依据。",
+          "example": "演示：预算 180–220 万 AED，偏好两居",
+          "options": []
+        },
+        {
+          "key": "budget_min",
+          "label": "预算下限",
+          "type": "number",
+          "required": "选填",
+          "description": "仅填客户明确表达的预算；未知留空，不推断财富。",
+          "example": "1800000",
+          "options": []
+        },
+        {
+          "key": "budget_max",
+          "label": "预算上限",
+          "type": "number",
+          "required": "选填",
+          "description": "若有上下限，必须下限不大于上限。",
+          "example": "2200000",
+          "options": []
+        },
+        {
+          "key": "currency",
+          "label": "预算币种",
+          "type": "enum",
+          "required": "条件必填",
+          "description": "有预算数值时填写。",
+          "example": "AED",
+          "options": [
+            "AED",
+            "USD",
+            "EUR",
+            "GBP",
+            "other"
+          ]
+        },
+        {
+          "key": "budget_constraint",
+          "label": "预算约束",
+          "type": "enum",
+          "required": "必填",
+          "description": "hard 硬性上限；flexible 可协商；未表态填 unknown。",
+          "example": "unknown",
+          "options": [
+            "hard",
+            "flexible",
+            "unknown"
+          ]
+        },
+        {
+          "key": "preferred_areas",
+          "label": "偏好区域",
+          "type": "multi_text",
+          "required": "选填",
+          "description": "多值用 | 分隔；保留客户原话及与区域字典的映射。",
+          "example": "DEMO-AREA-A|DEMO-AREA-B",
+          "options": []
+        },
+        {
+          "key": "property_types",
+          "label": "偏好物业类型",
+          "type": "multi_text",
+          "required": "选填",
+          "description": "使用房源物业类型英文 key，多值用 | 分隔。",
+          "example": "apartment|penthouse",
+          "options": []
+        },
+        {
+          "key": "bedrooms_min",
+          "label": "最少卧室数",
+          "type": "integer",
+          "required": "选填",
+          "description": "Studio 为 0，未知留空。",
+          "example": "2",
+          "options": []
+        },
+        {
+          "key": "area_min",
+          "label": "最小面积",
+          "type": "number",
+          "required": "选填",
+          "description": "同时记录单位；面积口径不清时在硬条件/备注说明。",
+          "example": "100",
+          "options": []
+        },
+        {
+          "key": "area_unit",
+          "label": "面积单位",
+          "type": "enum",
+          "required": "条件必填",
+          "description": "有最小面积时填写。",
+          "example": "sqm",
+          "options": [
+            "sqm",
+            "sqft"
+          ]
+        },
+        {
+          "key": "purchase_purpose",
+          "label": "购买目的",
+          "type": "enum",
+          "required": "必填",
+          "description": "客户主动说明的目的；未知用 unknown。",
+          "example": "unknown",
+          "options": [
+            "self_use",
+            "investment",
+            "mixed",
+            "unknown"
+          ]
+        },
+        {
+          "key": "market_preference",
+          "label": "现房期房偏好",
+          "type": "enum",
+          "required": "必填",
+          "description": "客户未表态填 unknown，不把未表态当作均可。",
+          "example": "unknown",
+          "options": [
+            "ready",
+            "off_plan",
+            "either",
+            "unknown"
+          ]
+        },
+        {
+          "key": "purchase_by",
+          "label": "计划购买日期",
+          "type": "date",
+          "required": "选填",
+          "description": "仅明确完整日期时填；“尽快”“本季度”保留在原文/备注。",
+          "example": "2026-12-01",
+          "options": []
+        },
+        {
+          "key": "move_in_by",
+          "label": "最晚入住日期",
+          "type": "date",
+          "required": "选填",
+          "description": "未知留空；与计划购买日期分开。",
+          "example": "2027-01-01",
+          "options": []
+        },
+        {
+          "key": "hard_constraints",
+          "label": "其他硬性条件",
+          "type": "text",
+          "required": "选填",
+          "description": "如必须带车位；只采用客户明确表达的条件。",
+          "example": "必须两居；预算上限不可超",
+          "options": []
+        },
+        {
+          "key": "soft_preferences",
+          "label": "可协商偏好",
+          "type": "text",
+          "required": "选填",
+          "description": "如偏好高楼层、泳池等；不自动升级成排除条件。",
+          "example": "偏好泳池",
+          "options": []
+        },
+        {
+          "key": "intent_evidence",
+          "label": "购买意愿证据",
+          "type": "text",
+          "required": "选填",
+          "description": "记录主动约看、报价、时间计划等实际信号，不填凭空推断的意愿分数。",
+          "example": "演示客户要求下周安排看房",
+          "options": []
+        },
+        {
+          "key": "missing_questions",
+          "label": "尚需追问",
+          "type": "text",
+          "required": "选填",
+          "description": "列影响推荐的缺口，例如预算是否含费用。",
+          "example": "预算是否包含交易费用？",
+          "options": []
+        },
+        {
+          "key": "data_kind",
+          "label": "数据性质",
+          "type": "enum",
+          "required": "必填",
+          "description": "真实公开、真实授权与演示数据必须区分；不能以公开可见替代使用许可。",
+          "example": "demo",
+          "options": [
+            "real_public",
+            "real_authorized",
+            "demo"
+          ]
+        },
+        {
+          "key": "source_name",
+          "label": "来源名称",
+          "type": "text",
+          "required": "必填",
+          "description": "网站、登记机关或授权脱敏资料名称；演示数据填“演示样例”。",
+          "example": "演示样例",
+          "options": []
+        },
+        {
+          "key": "source_ref",
+          "label": "来源链接或资料编号",
+          "type": "text",
+          "required": "必填",
+          "description": "公开数据填可追溯原文 URL；内部资料填脱敏文件编号，不填访问令牌或个人身份信息。",
+          "example": "DEMO-SOURCE-001",
+          "options": []
+        },
+        {
+          "key": "source_date",
+          "label": "来源发布日期",
+          "type": "date",
+          "required": "选填",
+          "description": "仅填原文明确的完整日期；不把采集日期、登记日期或估计日期填在这里。",
+          "example": "2026-09-03",
+          "options": []
+        },
+        {
+          "key": "captured_at",
+          "label": "采集或整理时间",
+          "type": "datetime",
+          "required": "必填",
+          "description": "实际采集/整理时间，采用 ISO 8601 且含时区。",
+          "example": "2026-09-03T10:00:00+08:00",
+          "options": []
+        },
+        {
+          "key": "verification_status",
+          "label": "核验状态",
+          "type": "enum",
+          "required": "必填",
+          "description": "verified 表示产品已核验相应字段；source-backed 不自动意味着可用。",
+          "example": "needs_review",
+          "options": [
+            "verified",
+            "needs_review",
+            "conflict"
+          ]
+        },
+        {
+          "key": "usage_status",
+          "label": "使用许可状态",
+          "type": "enum",
+          "required": "必填",
+          "description": "approved 表示已确认可用于本 Demo；pending 待确认；restricted 不可导入演示。",
+          "example": "pending",
+          "options": [
+            "approved",
+            "pending",
+            "restricted"
+          ]
+        },
+        {
+          "key": "reviewed_by",
+          "label": "核验人",
+          "type": "text",
+          "required": "条件必填",
+          "description": "verification_status 为 verified 时填写实际核验人；不得默认已核验。",
+          "example": "产品 A",
+          "options": []
+        },
+        {
+          "key": "notes",
+          "label": "缺失与限制说明",
+          "type": "text",
+          "required": "选填",
+          "description": "记录未披露字段、冲突、过期风险等；未知数值留空而不是填 0。",
+          "example": "格式示例，非真实数据",
+          "options": []
+        }
+      ]
+    },
+    {
+      "key": "match_reference",
+      "sheet": "05_匹配验收参考",
+      "owner": "产品 B",
+      "rowRule": "一行是一份需求的人工期望结果；有候选时关联一个挂牌，无匹配时可不填挂牌。仅用于验收，不是模型输出。",
+      "fields": [
+        {
+          "key": "case_id",
+          "label": "验收案例 ID",
+          "type": "text",
+          "required": "必填",
+          "description": "本表唯一。",
+          "example": "DEMO-M-001",
+          "options": []
+        },
+        {
+          "key": "requirement_id",
+          "label": "客户需求 ID",
+          "type": "text",
+          "required": "必填",
+          "description": "必须存在于客户需求表。",
+          "example": "DEMO-R-001",
+          "options": []
+        },
+        {
+          "key": "listing_id",
+          "label": "挂牌 ID",
+          "type": "text",
+          "required": "条件必填",
+          "description": "recommend/alternative/exclude 时必填且须存在于房源表；no_match 时留空，needs_clarification 可留空。同一房源可有多个客户案例。",
+          "example": "DEMO-L-001",
+          "options": []
+        },
+        {
+          "key": "expected_result",
+          "label": "人工期望结果",
+          "type": "enum",
+          "required": "必填",
+          "description": "recommend 推荐；alternative 备选；exclude 排除；needs_clarification 需补充信息；no_match 无匹配房源。",
+          "example": "needs_clarification",
+          "options": [
+            "recommend",
+            "alternative",
+            "exclude",
+            "needs_clarification",
+            "no_match"
+          ]
+        },
+        {
+          "key": "expected_rank",
+          "label": "人工参考顺序",
+          "type": "integer",
+          "required": "选填",
+          "description": "只在同一需求的候选之间比较；不是成交概率。",
+          "example": "1",
+          "options": []
+        },
+        {
+          "key": "matched_conditions",
+          "label": "满足的条件",
+          "type": "text",
+          "required": "条件必填",
+          "description": "recommend/alternative 时说明客户条件与房源字段如何对应。",
+          "example": "户型满足；预算口径待确认",
+          "options": []
+        },
+        {
+          "key": "conflicting_conditions",
+          "label": "冲突条件",
+          "type": "text",
+          "required": "条件必填",
+          "description": "exclude/no_match 时必须解释排除或无匹配依据；其余情况有冲突也需记录。",
+          "example": "",
+          "options": []
+        },
+        {
+          "key": "intent_assessment",
+          "label": "客户意愿参考",
+          "type": "enum",
+          "required": "选填",
+          "description": "只有客户主动表达或经纪人记录作为依据时填写；无依据用 unknown。",
+          "example": "unknown",
+          "options": [
+            "high",
+            "medium",
+            "low",
+            "unknown"
+          ]
+        },
+        {
+          "key": "intent_basis",
+          "label": "意愿判断依据",
+          "type": "text",
+          "required": "条件必填",
+          "description": "intent_assessment 非 unknown 时需引述具体沟通证据，不从身份/财富推断。",
+          "example": "",
+          "options": []
+        },
+        {
+          "key": "pricing_link_ids",
+          "label": "价格证据关联 ID",
+          "type": "multi_text",
+          "required": "选填",
+          "description": "引用房源成交关联表的 link_id；多个用 | 分隔。只能使用同一 listing_id 的已审核合格关联。",
+          "example": "DEMO-LINK-001",
+          "options": []
+        },
+        {
+          "key": "price_reference_note",
+          "label": "价格参考说明",
+          "type": "text",
+          "required": "选填",
+          "description": "说明挂牌与可比成交的关系及限制；无依据不填区间。不是客户成交价预测。",
+          "example": "没有已核验关联，暂不提供价格判断",
+          "options": []
+        },
+        {
+          "key": "follow_up_questions",
+          "label": "期望追问",
+          "type": "text",
+          "required": "选填",
+          "description": "需求不完整时应该询问什么。",
+          "example": "预算是否包含交易费用？",
+          "options": []
+        },
+        {
+          "key": "next_action",
+          "label": "期望下一步",
+          "type": "text",
+          "required": "选填",
+          "description": "供经纪人确认使用的建议，不触发外发或自动联系。",
+          "example": "先确认预算口径",
+          "options": []
+        },
+        {
+          "key": "case_type",
+          "label": "覆盖场景",
+          "type": "enum",
+          "required": "必填",
+          "description": "补齐一客多房、一房多客、预算冲突、无历史、无匹配、信息缺失等验收情形。",
+          "example": "missing_fields",
+          "options": [
+            "standard",
+            "multiple_properties",
+            "multiple_clients",
+            "budget_conflict",
+            "no_history",
+            "no_match",
+            "missing_fields",
+            "other"
+          ]
+        },
+        {
+          "key": "business_reviewer",
+          "label": "业务核验人",
+          "type": "text",
+          "required": "必填",
+          "description": "人工参考结果的实际确认人。",
+          "example": "产品 B",
+          "options": []
+        },
+        {
+          "key": "review_status",
+          "label": "业务确认状态",
+          "type": "enum",
+          "required": "必填",
+          "description": "draft 仅草案；confirmed 才可作为验收基准。",
+          "example": "draft",
+          "options": [
+            "draft",
+            "confirmed"
+          ]
+        },
+        {
+          "key": "reference_evidence",
+          "label": "参考答案依据",
+          "type": "text",
+          "required": "必填",
+          "description": "引用客户原文、房源/交易字段及产品规则，不填“AI 认为”作为唯一依据。",
+          "example": "DEMO-R-001 原文与 DEMO-L-001 字段",
+          "options": []
+        },
+        {
+          "key": "data_kind",
+          "label": "数据性质",
+          "type": "enum",
+          "required": "必填",
+          "description": "任一关联对象为演示，则案例也为 demo。",
+          "example": "demo",
+          "options": [
+            "real_public",
+            "real_authorized",
+            "demo"
+          ]
+        },
+        {
+          "key": "notes",
+          "label": "备注",
+          "type": "text",
+          "required": "选填",
+          "description": "尚未确认的规则和例外情况。",
+          "example": "",
+          "options": []
+        }
+      ]
+    }
+  ]
+}

@@ -14,4 +14,6 @@ tmp/
 *.inspect.ndjson
 data/incoming/
 data/private/
+# Local intake demo copies are reviewed separately from the published baseline.
+data/demo/intake-local/
 reference/

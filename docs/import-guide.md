@@ -4,6 +4,10 @@
 
 字段模板及含义以 `docs/data-contract.md`、`data/templates/schema.json` 为准，导入器不改字段 key。产品 A 填 `listing_snapshots.csv`、`transactions.csv`、`listing_transaction_links.csv`；产品 B 填 `client_requirements.csv`、`match_reference.csv`。
 
+当前模板为 **v1.1.0**，客户新增选填 `area_basis`（`internal/gross/built_up/land/unknown`），其余既有英文 key 保留。旧 v1.0.0 CSV 缺少该列或 JSON 缺少该字段仍可接收；新旧空模板分别保存在 `data/templates/v1.1.0/` 和 `data/templates/v1.0.0/`，不覆盖已填原件。新版 Excel 为 `outputs/area-basis-v1.1.0/BHHS_数据字段模板_v1.1.0.xlsx`，Excel 中文标题不作为接口 key。
+
+明确 `area_basis` 优先；字段缺省或空值时可用旧 `hard_constraints` 的 `area basis: built_up` 等英文标记。显式 unknown 不向旧文本或房源借值；字段与已知旧口径冲突时保留两者并提示确认，暂不进行面积资格判断。未知口径不会令整份合格需求被隔离，但应用面积条件时显示待确认和零候选说明。中文重复条件、矛盾和审核行为见 [需求审核说明](requirement-review.md)。
+
 1. 把空模板复制到 `data/incoming/批次名称/` 或 `data/private/批次名称/` 后填写。两目录已经忽略 Git；不覆盖模板或 `data/demo/`。
 2. 每份文件保留英文表头，UTF-8 编码，可带 BOM。多值字段用 `|`；文本含逗号、引号或换行时由 Excel 的 CSV 导出正确转义。
 3. 未知保留空值，金额与面积填纯数字。保留币种、面积单位、面积口径；完整日期为 `YYYY-MM-DD`，采集和审核时间为含时区 ISO 8601，如 `2026-09-02T12:00:00+04:00`。日期不可补造。
@@ -29,10 +33,34 @@ npm run dev
 
 ```powershell
 Remove-Item Env:BHHS_DATA_DIR -ErrorAction SilentlyContinue
+Remove-Item Env:BHHS_API_PORT -ErrorAction SilentlyContinue
+Remove-Item Env:BHHS_WEB_PORT -ErrorAction SilentlyContinue
 npm run dev
 ```
 
 默认 `data/demo/dataset.json` 全为 `data_kind=demo`，所有房源、交易、客户和证据均虚构。真实模式只接受 `real_public`/`real_authorized`；两个模式不混装。路径及符号链接必须保持在项目的 `data/demo/`、`data/incoming/`、`data/private/` 范围内。
+
+## 独立演示批次及草稿对照
+
+`data/incoming/` 的 demo-prepared 是暂存输入，不能直接作为 product 模式运行。以下工具先检查五表全部为 demo 且通过导入校验，再按原字节复制到被 Git 忽略的独立目录；不修改状态、不补事实、不覆盖默认主演示，也不会用公开候选补齐：
+
+```powershell
+node tools/prepare-demo-batch.mjs data/incoming/bhhs-v1-cb36120bce00/normalized/demo-prepared/dataset.json cb36120bce00
+$env:BHHS_DATA_DIR = 'data/demo/intake-local/cb36120bce00/dataset.json'
+$env:BHHS_API_PORT = '8002'
+$env:BHHS_WEB_PORT = '5174'
+npm run dev
+```
+
+同批次重复复制仅在内容相同时允许；不同内容使用新批次 key，旧副本保留。网页 `http://127.0.0.1:5174` 通过代理读取 API `http://127.0.0.1:8002`；默认 5173/8001 可同时保留。端口环境变量只改变本地开发服务，修改后需重启对应服务。
+
+在另一个终端生成对照：
+
+```powershell
+node --import tsx tools/compare-match-references.mjs data/demo/intake-local/cb36120bce00/dataset.json data/incoming/bhhs-v1-cb36120bce00
+```
+
+输出 `candidate-comparison.json` 和 `候选对照报告.md`，只允许写入已有 incoming/private/.work 子目录。先算确定性结果，再逐条对照人工预期，列出实际候选、目标状态、差异、原因及待补字段；draft 标签不作为筛选或排序输入，也不输出业务通过率。此命令会重新生成这两份派生报告，人工复核意见另存。所有批次产物均留在本地，不推送、部署或混入公开构建。
 
 ## 接收和隔离规则
 

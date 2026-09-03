@@ -23,6 +23,12 @@ npm run dev
 - 独立启动：`npm run dev:web`、`npm run dev:api`；组合启动用 `npm run dev`，`Ctrl+C` 停止。
 - 两个服务只绑定 `127.0.0.1`；没有部署到公网。
 
+## 代码仓库
+
+用户于 2026-09-03 UTC 明确授权新建公开 Git 仓库并同步现有提交。仓库为 [Ksaveworld/bhhs-gulf-properties-demo](https://github.com/Ksaveworld/bhhs-gulf-properties-demo)，`origin` 使用 HTTPS，主分支 `main`。保留全部本地小步提交历史；同步使用 `git push origin main`，同步后核对远端分支 SHA。
+
+首次推送前检查了 16 次提交、76 个唯一文件 blob 及 ZIP/XLSX 模板：凭证模式扫描无命中，历史未跟踪 `data/incoming/`、`data/private/`、`.env` 或临时 QA 目录，业务 Excel 数据区为空。此检查不是对未来提交的持续保证，真实资料仍按私有目录约定处理。
+
 ## 已实现内容
 
 | 主链路环节 | 当前实现 | 边界 |
@@ -193,7 +199,7 @@ v1 需求没有独立 `area_basis`，面积比较需在 `hard_constraints` 写�
 | `3e364e0` | 合格同屋成交图、时间线、日期筛选、唯一笔数和来源/键盘操作 |
 | `47e1d6f` | 六项新增 Chrome 实操回归；原有九项仍通过 |
 
-只授权本地小步提交，不自动 push，不公网发布，不重写历史。提交由主代理串行完成，子任务不执行暂存或提交。
+开发过程沿用本地小步提交；用户随后明确授权创建上述公开仓库并推送现有历史。提交和推送由主代理串行完成，不重写历史；子任务不执行暂存或提交。
 
 第二轮开工为 `main@ba64798`，工作区干净。当前改动归属开发及其子代理，已按上述提交留痕；没有修改 `.gitignore`、模板、控制塔数据契约或迭代 brief。最终 README/交接文档单独提交，最新 SHA 与提交后工作区状态以开发窗口最终实查交接为准。没有暂存未知修改。
 

@@ -1,0 +1,4 @@
+:root { font-family: 'Segoe UI', Arial, sans-serif; color: #25232a; background: #f5f6f8; font-synthesis: none; }
+body { margin: 0; }
+.scaffold { padding: 64px; }
+.scaffold h1 { color: #55223f; font-family: Georgia, serif; font-size: 44px; }

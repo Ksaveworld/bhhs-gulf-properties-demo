@@ -1,0 +1,32 @@
+{
+  "name": "bhhs-sales-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node tools/dev.mjs",
+    "dev:web": "vite --config apps/web/vite.config.ts",
+    "dev:api": "node apps/api/server.mjs",
+    "check": "tsc --noEmit",
+    "build": "npm run check && vite build --config apps/web/vite.config.ts",
+    "test": "tsx --test tests/*.test.ts tests/*.test.mjs",
+    "test:browser": "playwright test"
+  },
+  "dependencies": {
+    "@ant-design/icons": "^5.6.1",
+    "antd": "^5.26.0",
+    "csv-parse": "^6.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.0",
+    "@types/node": "^22.0.0",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.4.1",
+    "tsx": "^4.20.0",
+    "typescript": "^5.8.3",
+    "vite": "^6.2.2"
+  }
+}

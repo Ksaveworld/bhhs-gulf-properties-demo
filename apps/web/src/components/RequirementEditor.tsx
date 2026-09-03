@@ -8,9 +8,9 @@ import { requirementAreaWarnings, resolveRequirementArea } from '../../../../sha
 import { applyRequirementFields } from '../../../../shared/requirement-edit';
 import { FilterEditor } from './FilterEditor';
 
-type Props = { open: boolean; areas: string[]; initialRequirement?: ClientRequirement | null; onClose: () => void; onApply: (req: ClientRequirement, filters: Filters) => Promise<void> };
+type Props = { open: boolean; areas: string[]; initialRequirement?: ClientRequirement | null; inline?: boolean; canSave?: boolean; onSignIn?: () => void; onClose: () => void; onApply: (req: ClientRequirement, filters: Filters) => Promise<void> };
 const example = 'Looking for a ready 2 bedroom apartment in Dubai Marina, budget up to AED 2.8m, for self use. Must have parking. Prefer a balcony. Purchase by 2026-12-01.';
-export function RequirementEditor({ open, areas, initialRequirement, onClose, onApply }: Props) {
+export function RequirementEditor({ open, areas, initialRequirement, inline = false, canSave = true, onSignIn, onClose, onApply }: Props) {
   const [text, setText] = useState('');
   const [draft, setDraft] = useState<ClientRequirement | null>(null);
   const [filters, setFilters] = useState<Filters>({ ...EMPTY_FILTERS, area_basis: 'unknown' });
@@ -43,7 +43,7 @@ export function RequirementEditor({ open, areas, initialRequirement, onClose, on
   const areaWarnings = reviewed ? requirementAreaWarnings(reviewed) : [];
   const textReview = reviewed ? requirementTextReview(reviewed) : { equivalents: [], warnings: [] };
   async function apply() {
-    if (!reviewed || invalid || saving) return;
+    if (!reviewed || invalid || saving || !canSave) return;
     setSaving(true); setSaveError('');
     try {
       const req: ClientRequirement = { ...reviewed, requirement_id: `SESSION-R-${crypto.randomUUID()}`, client_id: initialRequirement?.client_id ?? `SESSION-C-${crypto.randomUUID()}`,
@@ -53,9 +53,10 @@ export function RequirementEditor({ open, areas, initialRequirement, onClose, on
     } catch (reason) { setSaveError(reason instanceof Error ? reason.message : 'Saving could not be confirmed. Your draft is retained.'); }
     finally { setSaving(false); }
   }
-  return <Drawer title="Client requirements" width="min(940px, 96vw)" open={open} onClose={saving ? undefined : onClose} closable={!saving} maskClosable={!saving} keyboard={!saving} className="requirement-drawer" footer={<div className="drawer-actions"><span data-testid="requirement-save-status">Not saved · Applying saves an independent copy in this browser.</span><Button type="primary" loading={saving} disabled={!draft || invalid || busy || saving} onClick={apply}>Apply to property library <ArrowRightOutlined /></Button></div>}>
+  const actions = <div className="drawer-actions"><span data-testid="requirement-save-status">Not saved · Applying saves a private copy for your Sales ID in this browser.</span>{canSave ? <Button type="primary" loading={saving} disabled={!draft || invalid || busy || saving} onClick={apply}>Apply to property library <ArrowRightOutlined /></Button> : <Button type="primary" onClick={onSignIn}>Sign in to save</Button>}</div>;
+  const content = <>
     <div className="assistant-mode"><Tag color="gold">Rule demo</Tag><span>Pattern extraction · No language model connected</span></div>
-    <h2>Start with the conversation.</h2><p className="muted">Paste de-identified sales notes, then review the structured requirements. Applying saves a separate copy in this browser for the current dataset version. Saving does not confirm business conditions.</p>
+    <h2>Start with the conversation.</h2><p className="muted">Paste de-identified sales notes, then review the structured requirements. Applying saves a separate private copy for your Sales ID and data version. Saving does not confirm business conditions.</p>
     {saveError && <Alert data-testid="requirement-save-error" type="error" showIcon message="Saving could not be confirmed" description={<>{saveError} Your draft remains open; no success has been reported.</>} />}
     <label className="field"><span>Sales conversation / notes</span><Input.TextArea aria-label="Sales conversation / notes" rows={4} value={text} onChange={e => { setText(e.target.value); setDraft(null); }} placeholder="Budget, areas, bedrooms, purpose, timeline, must-haves…" /></label>
     <div className="assistant-actions"><Button type="primary" loading={busy} disabled={!text.trim()} onClick={() => extract()}>Extract requirements</Button><Button onClick={() => { setText(example); extract(example); }}>Use demo conversation</Button><Button icon={<EditOutlined />} onClick={() => extract(text || 'Requirements entered by sales; details to be confirmed.')}>Enter manually</Button></div>
@@ -79,5 +80,6 @@ export function RequirementEditor({ open, areas, initialRequirement, onClose, on
         <label className="field full"><span>Questions to clarify</span><Input.TextArea aria-label="Questions to clarify" value={draft.missing_questions ?? ''} onChange={e => update('missing_questions', e.target.value || null)} autoSize /></label>
       </div>
     </div>}
-  </Drawer>;
+  </>;
+  return inline ? <section className="home-assistant requirement-drawer" aria-label="Client requirements">{content}{actions}</section> : <Drawer title="Client requirements" width="min(940px, 96vw)" open={open} onClose={saving ? undefined : onClose} closable={!saving} maskClosable={!saving} keyboard={!saving} className="requirement-drawer" footer={actions}>{content}</Drawer>;
 }

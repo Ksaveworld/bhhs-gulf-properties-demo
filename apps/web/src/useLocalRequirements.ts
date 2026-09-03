@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Dataset } from '../../../shared/types';
 import { loadLocalRequirements, requirementStorageKey, saveLocalRequirements, type LocalRequirementCopy, type StoredRequirements } from '../../../shared/local-requirements';
+import { salesRequirementKey } from '../../../shared/sales-identity';
 
-type Snapshot = { dataset: Dataset; store: StoredRequirements };
+type Snapshot = { dataset: Dataset; salesId: string | null; store: StoredRequirements };
 const failure = (error: unknown) => error instanceof Error ? error.message : 'Browser storage is unavailable. Imported records remain available.';
 
 /** The imported dataset is immutable. Only independently identified browser copies enter this store. */
-export function useLocalRequirements(dataset: Dataset | null) {
+export function useLocalRequirements(dataset: Dataset | null, salesId: string | null = null) {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -15,25 +16,28 @@ export function useLocalRequirements(dataset: Dataset | null) {
   const current = useRef<Snapshot | null>(null);
   const activeDataset = useRef(dataset);
   activeDataset.current = dataset;
+  const activeSales = useRef(salesId);
+  activeSales.current = salesId;
 
   useEffect(() => {
     let cancelled = false;
     current.current = null; setSnapshot(null); setError('');
     if (!dataset) { setLoading(false); return; }
     setLoading(true);
-    requirementStorageKey(dataset).then(key => {
+    requirementStorageKey(dataset).then(batchKey => {
       if (cancelled) return;
-      const next = { dataset, store: loadLocalRequirements(window.localStorage, key, dataset.client_requirements) };
+      const key = salesRequirementKey(batchKey, salesId);
+      const next = { dataset, salesId, store: loadLocalRequirements(window.localStorage, key, dataset.client_requirements) };
       current.current = next; setSnapshot(next);
     }).catch(reason => { if (!cancelled) setError(failure(reason)); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [dataset, refresh]);
+  }, [dataset, salesId, refresh]);
 
   useEffect(() => {
     function changed(event: StorageEvent) {
       const previous = current.current;
-      if (!previous || previous.dataset !== activeDataset.current || (event.key !== null && event.key !== previous.store.key)) return;
+      if (!previous || previous.dataset !== activeDataset.current || previous.salesId !== activeSales.current || (event.key !== null && event.key !== previous.store.key)) return;
       try {
         const next = { ...previous, store: loadLocalRequirements(window.localStorage, previous.store.key, previous.dataset.client_requirements) };
         current.current = next; setSnapshot(next); setError('');
@@ -49,11 +53,11 @@ export function useLocalRequirements(dataset: Dataset | null) {
     const previous = current.current;
     setWriting(true);
     try {
-      if (!previous || previous.dataset !== dataset) throw new Error('Local saving is unavailable. Retry local storage; imported requirements remain available.');
+      if (!previous || previous.dataset !== dataset || previous.salesId !== salesId) throw new Error('Local saving is unavailable. Retry local storage; imported requirements remain available.');
       const persist = () => {
-        if (activeDataset.current !== previous.dataset || current.current !== previous) throw new Error('This batch or its local copies changed. Review the current data before saving again.');
+        if (activeDataset.current !== previous.dataset || activeSales.current !== previous.salesId || current.current !== previous) throw new Error('This batch, sales identity or its local copies changed. Review the current data before saving again.');
         const store = saveLocalRequirements(window.localStorage, previous.store.key, transform(previous.store.copies), dataset!.client_requirements, previous.store.revision);
-        const next = { dataset: previous.dataset, store };
+        const next = { dataset: previous.dataset, salesId: previous.salesId, store };
         current.current = next; setSnapshot(next); setError('');
       };
       // Serializes writes from this app across Chrome tabs; revision checks also reject stale writers.
@@ -63,7 +67,7 @@ export function useLocalRequirements(dataset: Dataset | null) {
     finally { setWriting(false); }
   }
 
-  const active = snapshot?.dataset === dataset ? snapshot.store : null;
+  const active = snapshot?.dataset === dataset && snapshot.salesId === salesId ? snapshot.store : null;
   return {
     copies: active?.copies ?? [], key: active?.key ?? null,
     loading: loading || (!!dataset && !snapshot && !error), writing, error,

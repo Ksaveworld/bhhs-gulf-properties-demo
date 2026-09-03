@@ -1,31 +1,75 @@
-import { useEffect, useMemo, useRef, useState, type HTMLAttributes } from 'react';
-import { Alert, Button, ConfigProvider, Empty, Modal, Select, Skeleton, Table, Tag, Tooltip } from 'antd';
-import { ApartmentOutlined, ArrowRightOutlined, CheckCircleOutlined, DatabaseOutlined, FilterOutlined, HomeOutlined, ReloadOutlined, SearchOutlined, SlidersOutlined, TeamOutlined } from '@ant-design/icons';
-import type { ColumnsType } from 'antd/es/table';
-import type { ClientRequirement, Dataset, ListingSnapshot } from '../../../shared/types';
-import { EMPTY_FILTERS, evaluateMatch, filterListings, latestListings, requirementTextReview, requirementsToFilters, type Filters } from '../../../shared/matching';
-import { requirementAreaWarnings } from '../../../shared/requirement-area';
-import { FilterEditor } from './components/FilterEditor';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Button, ConfigProvider, Input, Modal, Skeleton, Tag } from 'antd';
+import { ApartmentOutlined, ArrowRightOutlined, DatabaseOutlined, FileTextOutlined, HomeOutlined, LoginOutlined, ReloadOutlined, TeamOutlined } from '@ant-design/icons';
+import type { ClientRequirement, Dataset } from '../../../shared/types';
+import { EMPTY_FILTERS, latestListings, requirementsToFilters, type Filters } from '../../../shared/matching';
+import { loadSalesIdentity, makeSalesIdentity, saveSalesIdentity, SALES_IDENTITY_KEY, type SalesIdentity } from '../../../shared/sales-identity';
+import type { LocalRequirementCopy } from '../../../shared/local-requirements';
 import { RequirementEditor } from './components/RequirementEditor';
 import { PropertyDetail } from './components/PropertyDetail';
-import { date, display, money } from './format';
+import { PropertyLibrary } from './components/PropertyLibrary';
+import { ClientDirectory } from './components/ClientDirectory';
+import { Reports } from './components/Reports';
 import { useLocalRequirements } from './useLocalRequirements';
-import type { LocalRequirementCopy } from '../../../shared/local-requirements';
+import './iteration-03.css';
+
+type Route = { page: 'home' | 'properties' | 'clients' | 'reports'; requirement: string | null; listing: string | null };
+function readRoute(): Route {
+  const [path, query] = location.hash.replace(/^#\/?/, '').split('?');
+  const params = new URLSearchParams(query);
+  return { page: ['properties', 'clients', 'reports'].includes(path) ? path as Route['page'] : 'home', requirement: params.get('requirement'), listing: params.get('listing') };
+}
+const headings: Record<Route['page'], [string, string]> = {
+  home: ['Your client. Their next home.', 'Bring the conversation into focus, then explore the evidence.'],
+  properties: ['Property library', 'Explore listings, compare price evidence, and find the right client fit.'],
+  clients: ['Clients & needs', 'Find a client first. Review each independent requirement before matching.'],
+  reports: ['Reports', 'Review property evidence and recorded client viewings in one place.'],
+};
 
 export function App() {
   const [dataset, setDataset] = useState<Dataset | null>(null);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState('');
+  const [route, setRoute] = useState<Route>(readRoute);
   const [filters, setFilters] = useState<Filters>({ ...EMPTY_FILTERS });
-  const [view, setView] = useState<'properties' | 'clients'>('properties');
   const [editorOpen, setEditorOpen] = useState(false);
+  const [homeDraftVersion, setHomeDraftVersion] = useState(0);
   const [reviewTarget, setReviewTarget] = useState<ClientRequirement | null>(null);
   const [dataOpen, setDataOpen] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [active, setActive] = useState<ClientRequirement | null>(null);
-  const local = useLocalRequirements(dataset);
+  const [identity, setIdentity] = useState<SalesIdentity | null>(() => { try { return loadSalesIdentity(localStorage); } catch { return null; } });
+  const [identityError, setIdentityError] = useState('');
+  const [signInOpen, setSignInOpen] = useState(false);
+  const [username, setUsername] = useState('');
+  const [salesIdInput, setSalesIdInput] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const local = useLocalRequirements(dataset, identity?.sales_id ?? null);
+  const identityRef = useRef(identity); identityRef.current = identity;
   const controller = useRef<AbortController>();
+
+  function navigate(next: Route) {
+    const query = new URLSearchParams();
+    if (next.requirement) query.set('requirement', next.requirement);
+    if (next.listing) query.set('listing', next.listing);
+    const hash = `#/${next.page}${query.size ? `?${query}` : ''}`;
+    setRoute(next); if (location.hash !== hash) location.hash = hash;
+  }
+  function changeIdentity(next: SalesIdentity | null) {
+    // Guest notes can survive first sign-in; an identified sales draft cannot move to another owner.
+    if (identityRef.current && identityRef.current.sales_id !== next?.sales_id) setHomeDraftVersion(version => version + 1);
+    setIdentity(next); setIdentityError(''); setEditorOpen(false); setReviewTarget(null);
+    setFilters({ ...EMPTY_FILTERS }); navigate({ page: 'home', requirement: null, listing: null });
+  }
+  useEffect(() => {
+    const hashChanged = () => setRoute(readRoute());
+    const identityChanged = (event: StorageEvent) => {
+      if (event.key !== null && event.key !== SALES_IDENTITY_KEY) return;
+      try { changeIdentity(loadSalesIdentity(localStorage)); }
+      catch (reason) { changeIdentity(null); setIdentityError(reason instanceof Error ? reason.message : 'Identity unavailable.'); }
+    };
+    try { loadSalesIdentity(localStorage); } catch (reason) { setIdentityError((reason as Error).message); }
+    window.addEventListener('hashchange', hashChanged); window.addEventListener('storage', identityChanged);
+    return () => { window.removeEventListener('hashchange', hashChanged); window.removeEventListener('storage', identityChanged); };
+  }, []);
   async function load() {
     controller.current?.abort();
     const current = new AbortController(); controller.current = current;
@@ -37,111 +81,86 @@ export function App() {
       const next = await response.json() as Dataset;
       if (!Array.isArray(next.listing_snapshots) || !Array.isArray(next.client_requirements) || !next.meta) throw new Error('invalid dataset');
       if (controller.current !== current || current.signal.aborted) return;
-      setActive(null); setFilters({ ...EMPTY_FILTERS }); setSelectedId(null); setReviewTarget(null); setEditorOpen(false);
-      setDataset(next);
+      setReviewTarget(null); setEditorOpen(false); setDataset(next);
     } catch {
-      if (controller.current === current) {
-        setDataset(null);
-        setError('The property data could not be loaded. Retry loading or check the data source.');
-      }
+      if (controller.current === current) { setDataset(null); setError('The property data could not be loaded. Retry loading or check the data source.'); }
     } finally { clearTimeout(timeout); if (controller.current === current) setBusy(false); }
   }
   useEffect(() => { load(); return () => { controller.current?.abort(); controller.current = undefined; }; }, []);
-  const listings = useMemo(() => latestListings(dataset?.listing_snapshots ?? []), [dataset]);
+  const sourceListings = useMemo(() => latestListings(dataset?.listing_snapshots ?? []), [dataset]);
+  // AED is the requested library view. Unknown currency stays visible as missing evidence;
+  // other currency records remain unchanged and available through source reports/details.
+  const listings = useMemo(() => sourceListings.filter(row => row.currency === 'AED' || row.currency === null), [sourceListings]);
   const requirements = useMemo(() => [...(dataset?.client_requirements ?? []), ...local.copies.map(copy => copy.requirement)], [dataset, local.copies]);
+  const active = requirements.find(req => req.requirement_id === route.requirement) ?? null;
+  const selected = sourceListings.find(listing => listing.listing_id === route.listing) ?? null;
   const localById = new Map(local.copies.map(copy => [copy.requirement.requirement_id, copy]));
-  useEffect(() => {
-    if (!busy && !local.loading && active && !requirements.some(req => req.requirement_id === active.requirement_id)) {
-      setActive(null); setFilters({ ...EMPTY_FILTERS }); setSelectedId(null);
-    }
-  }, [requirements, local.loading, busy, active]);
-  const areas = useMemo(() => [...new Set(listings.map(l => l.area_name))].sort(), [listings]);
-  const rows = useMemo(() => filterListings(listings, filters), [listings, filters]);
-  const selected = listings.find(l => l.listing_id === selectedId) ?? null;
-  const invalid = filters.budget_min !== null && filters.budget_max !== null && filters.budget_min > filters.budget_max;
-  const resultRows = invalid ? [] : rows;
-  const areaPending = filters.area_min !== null && (!filters.area_basis || filters.area_basis === 'unknown' || !filters.area_unit);
-  const activeTextWarnings = active ? requirementTextReview(active).warnings : [];
+  const areas = useMemo(() => [...new Set(listings.map(listing => listing.area_name))].sort(), [listings]);
+  useEffect(() => { setFilters(active ? requirementsToFilters(active) : { ...EMPTY_FILTERS }); }, [active?.requirement_id, local.key, dataset]);
+  function viewClient(req: ClientRequirement) { setFilters(requirementsToFilters(req)); navigate({ page: 'properties', requirement: req.requirement_id, listing: null }); }
   function openEditor(req: ClientRequirement | null = null) { setReviewTarget(req); setEditorOpen(true); }
-  function viewClient(req: ClientRequirement) {
-    setActive(req); setFilters(requirementsToFilters(req)); setView('properties'); setSelectedId(null);
+  function openSignIn() { setUsername(identity?.username ?? ''); setSalesIdInput(identity?.sales_id ?? ''); setLoginError(''); setSignInOpen(true); }
+  function signIn() {
+    try { changeIdentity(saveSalesIdentity(localStorage, makeSalesIdentity(username, salesIdInput))); setSignInOpen(false); }
+    catch (reason) { setLoginError((reason as Error).message); }
   }
-  async function apply(req: ClientRequirement, next: Filters) {
-    if (!dataset || local.loading || (reviewTarget && !requirements.some(item => item.requirement_id === reviewTarget.requirement_id))) throw new Error('The selected batch or requirement changed. Reopen it before saving.');
-    const original = reviewTarget ? dataset.client_requirements.find(item => item.requirement_id === reviewTarget.requirement_id)?.requirement_id ?? localById.get(reviewTarget.requirement_id)?.original_requirement_id ?? null : null;
-    await local.save({ requirement: req, original_requirement_id: original, parent_requirement_id: reviewTarget?.requirement_id ?? null, saved_at: new Date().toISOString() });
-    setActive(req); setFilters(next); setView('properties');
+  function signOut() {
+    try { changeIdentity(saveSalesIdentity(localStorage, null)); }
+    catch (reason) { setIdentityError((reason as Error).message); }
   }
+  async function apply(req: ClientRequirement, next: Filters, target = reviewTarget) {
+    const owner = identity?.sales_id;
+    if (!owner) throw new Error('Sign in with your demo Sales ID before saving a private requirement.');
+    if (!dataset || local.loading || (target && !requirements.some(item => item.requirement_id === target.requirement_id))) throw new Error('The selected batch or requirement changed. Reopen it before saving.');
+    const original = target ? dataset.client_requirements.find(item => item.requirement_id === target.requirement_id)?.requirement_id ?? localById.get(target.requirement_id)?.original_requirement_id ?? null : null;
+    const owned = { ...req, sales_owner: owner };
+    await local.save({ requirement: owned, original_requirement_id: original, parent_requirement_id: target?.requirement_id ?? null, saved_at: new Date().toISOString() });
+    if (identityRef.current?.sales_id !== owner) throw new Error('The sales identity changed. Reopen your saved copy under its owner.');
+    setFilters(next); navigate({ page: 'properties', requirement: owned.requirement_id, listing: null });
+  }
+  function reset() { setFilters({ ...EMPTY_FILTERS }); navigate({ page: 'properties', requirement: null, listing: null }); }
   async function deleteCopy(copy: LocalRequirementCopy, restore = false) {
     try {
       await local.remove(copy.requirement.requirement_id);
       const original = dataset?.client_requirements.find(req => req.requirement_id === copy.original_requirement_id);
       if (restore && original) viewClient(original);
       else if (active?.requirement_id === copy.requirement.requirement_id) reset();
-    } catch { /* The storage error remains visible and the current copy is retained in the interface. */ }
+    } catch { /* Storage errors remain visible. Do not remove a copy before confirmed persistence. */ }
   }
+  const visibility = (id: string) => localById.has(id) ? identity ? 'private' as const : 'legacy' as const : 'company' as const;
   function localControls(req: ClientRequirement) {
     const copy = localById.get(req.requirement_id);
     if (!copy) return null;
-    return <div className="local-copy-controls">
-      <Tag data-testid="local-copy-status" color="blue">Saved in this browser · 已保存到当前浏览器</Tag>
-      <span className="source-note">{copy.original_requirement_id ? `Original requirement: ${copy.original_requirement_id}` : 'New local requirement'}<br />Saved: {new Date(copy.saved_at).toLocaleString('en-GB')}</span>
-      <span className="source-note">Local copy · Business confirmation still required</span>
-      <div><Button size="small" danger disabled={local.writing} onClick={() => deleteCopy(copy)}>Delete local copy</Button>{copy.original_requirement_id && <Button size="small" disabled={local.writing} onClick={() => deleteCopy(copy, true)}>Restore original</Button>}</div>
-    </div>;
+    return <div className="local-copy-controls"><Tag data-testid="local-copy-status" color="blue">Saved in this browser · 已保存到当前浏览器</Tag>
+      <span className="source-note">{identity ? `Private · Owner Sales ID: ${identity.sales_id}` : 'Unassigned browser review · Created before demo identities'}<br />{copy.original_requirement_id ? `Original requirement: ${copy.original_requirement_id}` : 'New local requirement'}<br />Saved: {new Date(copy.saved_at).toLocaleString('en-GB')}</span>
+      <span className="source-note">Local copy · Business confirmation still required</span><div><Button size="small" danger disabled={local.writing} onClick={() => deleteCopy(copy)}>Delete local copy</Button>{copy.original_requirement_id && <Button size="small" disabled={local.writing} onClick={() => deleteCopy(copy, true)}>Restore original</Button>}</div></div>;
   }
-  function reset() { setFilters({ ...EMPTY_FILTERS }); setActive(null); }
-  const columns: ColumnsType<ListingSnapshot> = [
-    { title: 'Property', key: 'property', width: 285, render: (_, l) => <button className="property-link" onClick={() => setSelectedId(l.listing_id)} aria-label={`Open ${l.title}`}><span className={`property-symbol ${l.market_segment === 'off_plan' ? 'off-plan' : ''}`}><ApartmentOutlined /></span><span><strong>{l.title}</strong><span className="property-subline">{l.area_name}</span><span className="record-id">{l.listing_id} · {l.data_kind === 'demo' ? 'DEMO' : 'Product data'}</span></span></button> },
-    { title: 'Asking price', key: 'price', width: 165, render: (_, l) => <div><strong className="price">{money(l.asking_price, l.currency)}</strong><span className="table-caption">{l.listing_status === 'active' ? 'Current listing' : 'Recorded asking price'}</span></div> },
-    { title: 'Specification', key: 'spec', width: 170, render: (_, l) => <div><span>{l.bedrooms === null ? 'Beds undisclosed' : l.bedrooms === 0 ? 'Studio' : `${l.bedrooms} bedrooms`} · {display(l.property_type)}</span><span className="table-caption">{l.area_value === null ? 'Area not disclosed' : `${l.area_value.toLocaleString('en-US')} ${l.area_unit} · ${display(l.area_basis)}`}</span></div> },
-    { title: 'Status', key: 'status', width: 110, render: (_, l) => <div><Tag className={l.market_segment === 'ready' ? 'ready-tag' : ''}>{display(l.market_segment)}</Tag><span className="table-caption">{display(l.listing_status)}</span></div> },
-    { title: 'Updated', key: 'updated', width: 115, render: (_, l) => <span className="updated-date">{date(l.captured_at)}</span> },
-    ...(active ? [{ title: 'Client fit', key: 'fit', width: 130, render: (_: unknown, l: ListingSnapshot) => { const m = evaluateMatch(l, active); return <Tooltip title={[...m.conflicts, ...m.unknowns].join(' ')}><Tag color={m.status === 'match' ? 'green' : m.status === 'excluded' ? 'red' : 'gold'}>{m.status === 'match' ? 'Conditions met' : m.status === 'excluded' ? 'Conflict' : 'Review details'}</Tag></Tooltip>; } }] : []),
-    { title: '', key: 'open', width: 40, render: (_, l) => <Button type="text" aria-label={`Details ${l.listing_id}`} icon={<ArrowRightOutlined />} onClick={() => setSelectedId(l.listing_id)} /> },
-  ];
   return <ConfigProvider theme={{ token: { colorPrimary: '#55223f', colorInfo: '#55223f', colorText: '#28252d', colorBgLayout: '#f5f6f8', fontFamily: "'Segoe UI', Arial, sans-serif", borderRadius: 6, controlHeight: 37 }, components: { Table: { headerBg: '#f7f8fa', cellPaddingBlock: 18 }, Button: { primaryShadow: 'none' } } }}>
-    <div className="workspace">
-      <aside className="sidebar">
-        <div className="brand"><span className="brand-circle">BHHS</span><span className="brand-small">BERKSHIRE HATHAWAY<br />HOMESERVICES</span><strong>Gulf Properties</strong></div>
-        <div className="workspace-label">SALES WORKSPACE</div>
-        <nav aria-label="Main navigation"><button className={view === 'properties' ? 'nav-item active' : 'nav-item'} onClick={() => setView('properties')}><HomeOutlined /> Property library <span>{listings.length || '—'}</span></button><button className={view === 'clients' ? 'nav-item active' : 'nav-item'} onClick={() => setView('clients')}><TeamOutlined /> Clients & needs <span>{requirements.length || '—'}</span></button></nav>
-        <div className="sidebar-bottom"><button className="nav-item" onClick={() => setDataOpen(true)}><DatabaseOutlined /> Data & sources</button><div className="sales-profile"><span>GP</span><div><strong>Sales workspace</strong><small>Sales demonstration</small></div></div></div>
-      </aside>
-      <div className="workspace-main">
-        <header className="topbar"><span>Gulf Properties <span className="breadcrumb-slash">/</span> {view === 'properties' ? 'Property library' : 'Clients & needs'}</span><div className="topbar-right"><span className="local-status"><i /> Sales workspace</span><Tag color="gold">{dataset?.meta.mode === 'product' ? 'Product dataset' : 'Demo dataset'}</Tag></div></header>
-        <main className="main-content">
-          <div className="page-heading"><div><p className="eyebrow">{view === 'properties' ? 'FROM CLIENT NEEDS TO THE RIGHT PROPERTY' : 'A CLEARER PICTURE OF EVERY CLIENT'}</p><h1>{view === 'properties' ? 'Property library' : 'Clients & needs'}</h1><p className="heading-description">{view === 'properties' ? 'Explore listings, compare price evidence, and find the right client fit.' : 'Review stated requirements and explore suitable properties together.'}</p></div><Button aria-label="Client requirements" disabled={!dataset || busy || local.loading} type="primary" size="large" icon={<SearchOutlined />} onClick={() => openEditor()}>Client requirements</Button></div>
-          <div className="evidence-banner"><span className="banner-dot" /><span>{dataset?.meta.mode === 'product' ? 'Product data · Only approved, reviewed records are shown. Source limitations remain visible.' : 'Demonstration only · Properties, prices, transactions and clients are fictional samples.'}</span><button onClick={() => setDataOpen(true)}>View data notes <ArrowRightOutlined /></button></div>
+    <div className="workspace"><aside className="sidebar"><div className="brand"><span className="brand-circle">BHHS</span><span className="brand-small">BERKSHIRE HATHAWAY<br />HOMESERVICES</span><strong>Gulf Properties</strong></div><div className="workspace-label">SALES WORKSPACE</div>
+      <nav aria-label="Main navigation">{([['home', <HomeOutlined />, 'Home'], ['properties', <ApartmentOutlined />, 'Property library'], ['clients', <TeamOutlined />, 'Clients & needs'], ['reports', <FileTextOutlined />, 'Reports']] as const).map(([page, icon, label]) => <button key={page} className={`nav-item ${route.page === page ? 'active' : ''}`} onClick={() => navigate({ page, requirement: page === 'properties' ? route.requirement : null, listing: null })}>{icon}{label}</button>)}</nav>
+      <div className="sidebar-bottom"><button className="nav-item" onClick={() => setDataOpen(true)}><DatabaseOutlined /> Data & sources</button><p>Sales assistance demo<br />Recorded evidence · Human review</p><div className="sales-profile"><span className="sales-avatar">{identity?.username.slice(0, 1) ?? 'S'}</span><div><strong>{identity?.username ?? 'Sales workspace'}</strong><span>{identity?.sales_id ?? 'Guest · Company samples'}</span></div></div></div></aside>
+      <div className="workspace-main"><header className="topbar"><span>Gulf Properties <span className="breadcrumb-slash">/</span> {route.page === 'home' ? 'Home' : headings[route.page][0]}</span><div className="topbar-right"><Tag color="gold">{dataset?.meta.mode === 'product' ? 'Product dataset' : 'Demo dataset'}</Tag>{identity ? <><span data-testid="current-sales-identity">{identity.username} · {identity.sales_id}</span><Button onClick={openSignIn}>Switch sales identity</Button><Button onClick={signOut}>Sign out</Button></> : <Button icon={<LoginOutlined />} onClick={openSignIn}>Sign in</Button>}</div></header>
+        <main className="main-content"><div className="page-heading"><div><p className="eyebrow">BHHS GULF PROPERTIES · SALES WORKSPACE</p><h1>{headings[route.page][0]}</h1><p className="heading-description">{headings[route.page][1]}</p></div></div>
+          <div className="evidence-banner"><span className="banner-dot" /><span>{dataset?.meta.mode === 'product' ? 'Product source · Imported records passed intake review. Local edits still require business confirmation.' : 'Demonstration only · Properties, prices, transactions and clients are fictional samples.'}</span><button onClick={() => setDataOpen(true)}>View data notes <ArrowRightOutlined /></button></div>
+          {identityError && <Alert type="error" message="Demo identity needs attention" description={identityError} action={<Button onClick={openSignIn}>Sign in again</Button>} />}
           {error && <Alert className="load-error" type="error" showIcon message="Data unavailable" description={error} action={<Button onClick={load}>Retry loading</Button>} />}
           {busy ? <div className="loading-panel" role="status" aria-label="Loading property data"><Skeleton active paragraph={{ rows: 8 }} /><span>Loading property data…</span></div> : dataset && <>
-            {dataset.meta.quarantined_count > 0 && <Alert type="warning" showIcon message={`${dataset.meta.quarantined_count} records are awaiting data review and are excluded.`} action={<Button size="small" onClick={() => setDataOpen(true)}>Review notes</Button>} />}
+            {dataset.meta.quarantined_count > 0 && <Alert type="warning" showIcon message={`${dataset.meta.quarantined_count} records are awaiting data review and are excluded.`} />}
             {local.error && <Alert data-testid="local-storage-error" className="local-storage-alert" type="error" showIcon message="Browser saving needs attention" description={local.error} action={<Button onClick={local.retry} disabled={local.writing}>Retry local storage</Button>} />}
-            <div className="local-storage-notice" data-testid="local-storage-notice" role="status">{local.loading ? 'Loading browser copies…' : <><strong>{local.copies.length} saved browser copies</strong><span>Saved only in this browser and site address, for the current data batch and version. Imported records and business review status stay unchanged.</span></>}</div>
-            {view === 'properties' ? <>
-              <section className="filter-panel" aria-label="Property filters"><div className="filter-heading"><span><FilterOutlined /> Refine your search</span><div><Button type="text" size="small" onClick={reset}>Reset filters</Button><Button type="text" size="small" icon={<SlidersOutlined />} onClick={() => setExpanded(v => !v)}>{expanded ? 'Fewer filters' : 'More filters'}</Button></div></div><div className={expanded ? 'filter-display expanded' : 'filter-display'}><FilterEditor value={filters} onChange={setFilters} areas={areas} compact={!expanded} /></div>
-                {invalid && <Alert type="error" message="Minimum price must not exceed maximum price." />}
-                {areaPending && <Alert data-testid="library-area-warning" type="warning" message="Area basis needs confirmation (面积口径待确认)" description="Area comparison is pending. A zero count here does not establish that no suitable properties exist. Confirm the client’s area basis and unit before comparing." />}
-                <div className="filter-footnote">Prices keep their original currency. Area comparisons use the selected measurement basis.{filters.move_in_by && ` Available by: ${filters.move_in_by}.`}</div>
-              </section>
-              {activeTextWarnings.length > 0 && <Alert data-testid="library-text-warning" type="warning" showIcon message="Client conditions need clarification" description={<><p>These are structured search candidates, not confirmed recommendations. Original conditions are retained for sales review.</p><ul className="compact-list">{activeTextWarnings.map((message, index) => <li key={index}>{message}</li>)}</ul></>} action={<Button onClick={() => openEditor(active)}>Review conditions</Button>} />}
-              <div className="library-layout"><section className="results-panel"><div className="results-toolbar"><div><h2><span data-testid="result-count">{resultRows.length}</span> properties</h2><span>{active ? `Structured search for ${active.client_alias}` : 'In your current selection'}</span></div><Select aria-label="Sort properties" value={filters.sort} onChange={v => setFilters({ ...filters, sort: v })} options={[{ value: 'updated_desc', label: 'Recently updated' }, { value: 'price_asc', label: 'Price: low to high' }, { value: 'price_desc', label: 'Price: high to low' }]} /></div><Table className="property-table" rowKey="listing_id" columns={columns} dataSource={resultRows} pagination={{ pageSize: 6, showSizeChanger: false, hideOnSinglePage: true }} scroll={{ x: active ? 1115 : 985 }} onRow={l => ({ 'data-testid': `listing-${l.listing_id}` } as HTMLAttributes<HTMLTableRowElement>)} locale={{ emptyText: <Empty description={<><strong>{areaPending ? 'Area comparison is awaiting confirmation.' : 'No properties meet these filters.'}</strong><p>{areaPending ? 'Confirm the required area basis and unit. Missing information is not evidence that no suitable property exists.' : 'Try another area or a wider budget. Unknown fields cannot satisfy a selected condition.'}</p><Button onClick={reset}>Reset filters</Button></>} /> }} /><div className="table-footer"><CheckCircleOutlined /> Latest snapshot per listing · Listing price and transaction price are kept separate.</div></section>
-                <aside className="client-brief"><div className="brief-header"><span>CLIENT BRIEF</span><TeamOutlined /></div><h2>{active?.client_alias ?? 'Start with your client.'}</h2><p>{active ? 'Requirements recorded by sales. Review remaining questions before recommending.' : 'Bring the conversation into the search. Review requirements and compare the evidence.'}</p>
-                  <label className="field"><span>Select a client requirement</span><Select aria-label="Select a client requirement" placeholder="Choose a sample client" value={active?.requirement_id} options={requirements.map(r => ({ value: r.requirement_id, label: `${r.client_alias} · ${r.requirement_id}` }))} onChange={id => { const r = requirements.find(r => r.requirement_id === id); if (r) viewClient(r); }} /></label>
-                  {active ? <><Button block onClick={() => openEditor(active)}>Review selected requirement</Button>{localControls(active)}{requirementAreaWarnings(active).length > 0 && <Alert type="warning" message="Area basis needs confirmation (面积口径待确认)" description={requirementAreaWarnings(active).join(' ')} />}<dl className="brief-facts"><dt>Stated budget</dt><dd>{money(active.budget_max, active.currency)}<small>{active.budget_constraint} constraint</small></dd><dt>Purchase purpose</dt><dd>{display(active.purchase_purpose)}</dd><dt>Purchase by</dt><dd>{date(active.purchase_by)}</dd><dt>Preferences</dt><dd>{active.soft_preferences || 'Not recorded'}</dd></dl><div className="brief-next"><strong>To clarify</strong><p>{active.missing_questions || 'Confirm availability, total fees and any unverified requirements.'}</p></div><p className="source-note">{active.requirement_id}<br />{active.source_ref}</p><Button block onClick={reset}>Clear client search</Button></> : <><div className="brief-line"><span>1</span> Paste sales notes</div><div className="brief-line"><span>2</span> Review the requirements</div><div className="brief-line"><span>3</span> Explore candidate properties</div><Button block onClick={() => openEditor()}>Open requirements <ArrowRightOutlined /></Button><span className="rules-note">Rule demo · No model connected</span></>}
-                </aside></div>
-            </> : <section className="clients-panel"><div className="results-toolbar"><div><h2>{requirements.length} client requirements</h2><span>De-identified samples · Customer statements remain distinct from inference</span></div></div>{requirements.length === 0 ? <Empty description="No client requirements have been supplied." /> : requirements.map(req => { const matches = filterListings(listings, requirementsToFilters(req)); return <article key={req.requirement_id} data-requirement-id={req.requirement_id} className="client-row"><div className="client-avatar">{req.client_alias.split(' ').map(w => w[0]).slice(0, 2).join('')}</div><div className="client-summary"><h3>{req.client_alias} <Tag>{req.data_kind === 'demo' ? 'Demo' : 'Product'}</Tag></h3><p>{req.raw_request}</p><span className="source-note">{req.client_id} · {req.requirement_id} · {req.source_ref}</span><p className="intent-note">Stated intent: {req.intent_evidence || 'Not recorded'} · Purchase by: {date(req.purchase_by)}</p>{localControls(req)}</div><div className="client-result"><strong>{matches.length}</strong><span>structured candidates</span>{requirementAreaWarnings(req).length > 0 && <Tag color="gold">Area basis needs confirmation · 面积口径待确认</Tag>}<Button onClick={() => viewClient(req)}>View properties <ArrowRightOutlined /></Button></div></article>; })}</section>}
+            <div className="local-storage-notice" data-testid="local-storage-notice" role="status">{local.loading ? 'Loading browser copies…' : <><strong>{local.copies.length} saved browser copies</strong><span>{identity ? `Private to ${identity.sales_id} in this demo view.` : 'Older unassigned reviews stay available when signed out.'} Saved for this browser, site address and data version. Saving does not confirm business conditions.</span></>}</div>
+            {route.requirement && !active && !local.loading && <Alert type="warning" message="This requirement is not available for the current sales identity or data version." action={<Button onClick={reset}>Clear client search</Button>} />}
+            {route.listing && !selected && <Alert type="warning" message="This property link is not available in the current data version." action={<Button onClick={() => navigate({ ...route, listing: null })}>Close property link</Button>} />}
+            {route.page === 'home' && <><RequirementEditor key={homeDraftVersion} inline open areas={areas} canSave={!!identity && !local.loading} onSignIn={openSignIn} onClose={() => {}} onApply={(req, next) => apply(req, next, null)} /><div className="home-library-link"><span>Prefer to start with the inventory?</span><Button onClick={() => navigate({ page: 'properties', requirement: null, listing: null })}>Browse property library <ArrowRightOutlined /></Button></div></>}
+            {route.page === 'properties' && <>{sourceListings.length > listings.length && <p className="source-note" data-testid="aed-view-note">AED library view · {sourceListings.length - listings.length} other-currency listing(s) retained in source reports, outside this view. No exchange-rate conversion is applied.</p>}<PropertyLibrary listings={listings} requirements={requirements} filters={filters} onFilter={setFilters} active={active} onViewClient={viewClient} onReview={openEditor} onOpen={id => navigate({ ...route, listing: id })} onReset={reset} localControls={localControls} /></>}
+            {route.page === 'clients' && <ClientDirectory requirements={requirements} listings={listings} getVisibility={visibility} onView={viewClient} onAddPrivate={() => identity ? openEditor() : openSignIn()} canAddPrivate={!!identity} renderLocalControls={localControls} />}
+            {route.page === 'reports' && <Reports key={`${local.key}:${identity?.sales_id ?? 'guest'}`} dataset={dataset} listings={sourceListings} requirements={requirements} salesId={identity?.sales_id ?? null} storageScope={local.key} onOpenProperty={id => navigate({ ...route, listing: id })} />}
           </>}
           <footer className="page-footer"><span>BHHS Gulf Properties · Sales assistance demo</span><Button aria-label="Refresh data" type="text" size="small" icon={<ReloadOutlined />} loading={busy} onClick={load}>Refresh data</Button></footer>
-        </main>
-      </div>
-      <RequirementEditor open={editorOpen} initialRequirement={reviewTarget} areas={areas} onClose={() => setEditorOpen(false)} onApply={apply} />
-      {dataset && <PropertyDetail listing={selected} dataset={dataset} requirements={requirements} onClose={() => setSelectedId(null)} onViewClient={viewClient} />}
-      <Modal title="Data & sources" open={dataOpen} onCancel={() => setDataOpen(false)} footer={<Button onClick={() => setDataOpen(false)}>Close</Button>} width={670}>
-        <Alert showIcon type="info" message={dataset?.meta.label ?? 'Dataset not loaded'} description="The rule assistant organizes stated needs. Matching compares recorded conditions; it does not predict a sale or infer a client's assets." />
-        <dl className="data-notes"><dt>Data mode</dt><dd>{dataset?.meta.mode ?? 'Unavailable'}</dd><dt>Dataset prepared</dt><dd>{dataset?.meta.loaded_at ?? 'Unavailable'}</dd><dt>Source records</dt><dd>{dataset?.listing_snapshots.length ?? 0} listing snapshots · {dataset?.transactions.length ?? 0} transactions · {dataset?.client_requirements.length ?? 0} requirements</dd><dt>Data refresh</dt><dd>Refresh reloads the configured dataset. Published demos use the snapshot prepared for that release.</dd><dt>Browser copies</dt><dd>Applying saves independent copies in this browser for the current data batch and version. Copies persist after reload; clearing site data removes them. They are not synced to another browser, device or site address. Saving does not confirm business conditions.</dd><dt>Restore original</dt><dd>Deletes the selected local copy and opens its unchanged imported requirement. Other copies remain independent.</dd><dt>Data decisions</dt><dd>The workspace owner reviews unresolved conditions, source evidence and draft case references. Local copies never replace imported records or confirm draft references.</dd></dl>
-        {!!dataset?.meta.warnings.length && <Alert type="warning" message="Data review notes" description={<ul>{dataset.meta.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>} />}
-      </Modal>
+        </main></div>
+      <RequirementEditor open={editorOpen} initialRequirement={reviewTarget} areas={areas} canSave={!!identity && !local.loading} onSignIn={openSignIn} onClose={() => setEditorOpen(false)} onApply={apply} />
+      {dataset && <PropertyDetail key={identity?.sales_id ?? 'guest'} listing={selected} dataset={dataset} requirements={requirements} onClose={() => navigate({ ...route, listing: null })} onViewClient={viewClient} />}
+      <Modal title="Demo sign in" open={signInOpen} onCancel={() => setSignInOpen(false)} onOk={signIn} okText="Continue as sales" destroyOnClose><p className="muted">Choose your demonstration sales identity. This separates private browser copies by Sales ID; it is not a real authentication system.</p>{loginError && <Alert data-testid="identity-save-error" type="error" showIcon message={loginError} />}<label className="field login-field"><span>Username</span><Input aria-label="Username" value={username} onChange={e => setUsername(e.target.value)} maxLength={80} /></label><label className="field login-field"><span>Sales ID</span><Input aria-label="Sales ID" value={salesIdInput} onChange={e => setSalesIdInput(e.target.value)} onPressEnter={signIn} maxLength={64} /><small>Letters, numbers, hyphens and underscores · case-sensitive</small></label></Modal>
+      <Modal title="Data & sources" open={dataOpen} onCancel={() => setDataOpen(false)} footer={<Button onClick={() => setDataOpen(false)}>Close</Button>} width={670}><Alert showIcon type="info" message={dataset?.meta.label ?? 'Dataset not loaded'} description="The rule assistant organizes stated needs. Matching compares recorded conditions; it does not predict a sale or infer a client's assets." /><dl className="data-notes"><dt>Data mode</dt><dd>{dataset?.meta.mode ?? 'Unavailable'}</dd><dt>Dataset prepared</dt><dd>{dataset?.meta.loaded_at ?? 'Unavailable'}</dd><dt>Source records</dt><dd>{dataset?.listing_snapshots.length ?? 0} listing snapshots · {dataset?.transactions.length ?? 0} transactions · {dataset?.client_requirements.length ?? 0} imported requirements</dd><dt>Browser copies</dt><dd>Independent copies persist by data source, version and Sales ID in this browser. Clearing site data removes them; they are not synced or backed up on a server. Prior unassigned copies remain available while signed out.</dd><dt>Demo identity</dt><dd>Company samples are shared; new private copies are filtered by their creator Sales ID throughout this demo. This is not authentication: someone with this browser can choose any Sales ID or inspect local storage. Real imported client access requires a separate authorized access model.</dd><dt>Restore original</dt><dd>Deletes only the selected copy and returns to its imported requirement. Other copies and original input files remain.</dd><dt>Rules & dates</dt><dd>Completion and listing status, contract and registration dates retain their separate meanings. User confirmation is still required for business definitions, unknown conditions and draft references.</dd></dl>{!!dataset?.meta.warnings.length && <Alert type="warning" message="Data review notes" description={<ul>{dataset.meta.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>} />}</Modal>
     </div>
   </ConfigProvider>;
 }

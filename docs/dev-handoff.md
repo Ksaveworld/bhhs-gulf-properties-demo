@@ -2,13 +2,13 @@
 
 ## 当前状态
 
-最新本地改版增加 Home 规则助手、演示销售身份、公私客户目录、房源面积区间和列头排序、Reports 房屋证据与本机看房记录。新增和审核后的需求继续独立保存，并按 Sales ID、来源及五表内容版本隔离。页面刷新恢复有效需求/详情链接，支持删除与恢复原件；原文冲突、缺口径与待补信息保留。
+最新改版增加 Home 规则助手、演示销售身份、公私客户目录、房源面积区间和列头排序、Reports 房屋证据与本机看房记录，已按用户追加授权公开发布。新增和审核后的需求继续独立保存，并按 Sales ID、来源及五表内容版本隔离。页面刷新恢复有效需求/详情链接，支持删除与恢复原件；原文冲突、缺口径与待补信息保留。
 
 当前分支 `main`。本轮依据附件改版清单及用户“启动”授权，从干净的 `5f90622` 开始，完整保留此前面积审核与本机保存提交。本轮小步 SHA、实际操作和边界见文末“Home、销售身份与 Reports 改版”。交接文档最后独立提交，最终 SHA 以 `git log -1 --oneline` 和窗口交接为准。所有 Git 操作由主代理串行完成，未暂存未知修改。
 
 本地独立批次地址 **[http://127.0.0.1:5174](http://127.0.0.1:5174)**，默认主演示为 **[http://127.0.0.1:5173](http://127.0.0.1:5173)**。49 条 demo 接收记录保持原样，28 条公开资料仍隔离；15 条人工参考均 draft，6 条推荐/备选仍待客户面积口径确认。**技术交互通过不等于这 15 条业务验收通过。** 使用方式见 [本机保存](local-requirements.md)、[报告记录](report-records.md)，新版输入准备见 [案例复验](case-revalidation.md)。
 
-**本轮只在本地完成，未 push、未部署。** 此前按用户追加授权发布的 [在线 Demo](https://bhhs-gulf-properties-demo.vercel.app) 及当时的匿名验证记录保留在历史章节，不含本机保存与本轮改版增量。当前所有业务输入、演示设定与确认统一收口给用户；控制塔整理资料与验收准备，原产品 A/B 表格保留为历史分工。
+**用户随后追加“上线吧，记得 commit”授权，代码 `30c2ee7` 已推送并发布到 [在线 Demo](https://bhhs-gulf-properties-demo.vercel.app)。** 无需 Vercel 登录即可访问，应用内的 Sales ID 仍是可选择的演示身份。公开版只包含固定虚构主样例；本机接收批次不上传。早期各轮“仅本地”记录保留为当时状态，最新发布验证见文末。所有业务输入与确认仍统一收口给用户。
 
 ## 启动与地址
 
@@ -29,7 +29,7 @@ npm run dev
 
 ## 代码仓库
 
-用户此前于 2026-09-03 UTC 授权新建公开 Git 仓库并同步当时提交。仓库为 [Ksaveworld/bhhs-gulf-properties-demo](https://github.com/Ksaveworld/bhhs-gulf-properties-demo)，`origin` 使用 HTTPS，主分支 `main`。面积口径轮按追加上线授权推送；后续本机保存与改版轮只做本地提交，历史保留，未强推或改写提交。
+用户此前于 2026-09-03 UTC 授权新建公开 Git 仓库并同步当时提交。仓库为 [Ksaveworld/bhhs-gulf-properties-demo](https://github.com/Ksaveworld/bhhs-gulf-properties-demo)，`origin` 使用 HTTPS，主分支 `main`。本机保存与改版先按要求本地提交；收到最新上线授权后连同既有历史推送，未强推或改写提交。
 
 首次推送前检查了 16 次提交、76 个唯一文件 blob 及 ZIP/XLSX 模板：凭证模式扫描无命中，历史未跟踪 `data/incoming/`、`data/private/`、`.env` 或临时 QA 目录，业务 Excel 数据区为空。此检查不是对未来提交的持续保证，真实资料仍按私有目录约定处理。
 
@@ -489,3 +489,36 @@ Remove-Item Env:BHHS_E2E_BASE_URL
 | 真实客户访问范围和看房证据 | 本轮演示身份可自行选择，只有本机界面分区；需要真实认证与来源授权时另行接入 |
 
 尚未验证正式认证、跨设备/跨浏览器恢复、移动端完整交互或公网性能；没有服务器备份。Reports 的看房保存有修订号与回读检查，不声称跨标签原子事务。规则助手和报告均未训练或调用模型，没有综合分数、成交概率、客户资产推断、CRM 写回或消息外发。收到新版输入后按 [案例复验准备](case-revalidation.md) 另存差异，原始记录及旧人工草稿保留。
+
+## 改版公开发布（2026-09-03 UTC）
+
+用户在本地交付后明确追加“上线吧，记得 commit”。开工确认干净的 `main@30c2ee7`；远端为 `577663a`，本地领先 13 笔、没有远端独有提交。保留各功能与修复的小步历史，经公开范围检查后正常推送 `main`，未改写提交。
+
+- 稳定入口：[https://bhhs-gulf-properties-demo.vercel.app](https://bhhs-gulf-properties-demo.vercel.app)。
+- 项目 `kwillsaveworld/bhhs-gulf-properties-demo`，GitHub `main` 自动触发 Production 构建。代码发布部署 `dpl_FZDQKdW6q2ukcwJhyACg2YjU9sGL` 对应 `30c2ee78e64ec4705a1eb58619e5cdd8d2c38845`，状态 Ready，稳定别名已切换；GitHub Vercel 检查 success。
+- API 核对 SSO、密码与 trusted IP 保护均为 null，匿名浏览器进一步验证免 Vercel 登录。应用中的 Username / Sales ID 仍是演示分区，不是账号认证。
+- 此发布记录随后独立 commit 并推送；它只改变 README 和交接说明，不改变已验收的应用或公开数据。最终提交/部署核对以窗口交接和 `git log -1` 为准。
+
+### 发布前与线上实测
+
+| 检查 | 实际结果 |
+|---|---|
+| 待推历史审查 | 13 提交、45 变更路径、71 个历史文件 blob；每个提交树无私有输入、intake-local、环境、临时 QA 或依赖目录。凭证及个人联系方式模式无命中；没有新增二进制/压缩包。此为有界审查，不等于完整安全审计 |
+| 公开导出与构建 | 重新运行 **150/150 单元测试**、`npm run build:public` **退出 0**。主数据、白名单及公开导出器与远端基线相同；固定导出 11 挂牌快照 / 8 成交 / 9 关联 / 8 需求 / 8 参考，共 **44 条全 demo、零隔离**，忽略本机 BHHS_DATA_DIR |
+| 独立匿名 Chrome | **退出 0**；初始及结束 cookie 均为 0，无 storageState、绕过头或 Vercel 登录。Home、`/api/dataset`、`/api/health` 均 HTTP 200；health 明确 static_demo_snapshot / rules；8 条 AED 候选、四列头排序、详情 hash 刷新和两 Reports Tab 可操作 |
+| 线上完整增量回归 | 原 `workspace-v3.spec.ts` 8 项 + `reports-v3.spec.ts` 6 项，**14/14 通过、退出 0、1.4 分钟**。覆盖公私可见性及草稿切换、需求与看房保存/配额失败/恢复、同客多需求、筛选排序、双向匹配、价格证据/来源回跳、报告统计和返回上下文 |
+| 资源和页面 | 实际加载 `index-D6M-o39m.js` / `index-CWflECCV.css`，与本地公开构建名称一致；首次 200、刷新 304。1366×768 无文档横溢、页面错误或非 GET API 请求；宽表内部横滚保留 |
+
+首次自动回归的 Playwright Node `request.get` 直连出现 ETIMEDOUT，同一页面和独立浏览器 fetch 均已正常。停止重复执行后核对到本机启用的系统代理，在 `.work` 临时配置中让 Node 请求使用同一路径；探针 HTTP 200，再原样跑完 14 项。没有改测试断言、全局网络、应用或访问保护。该结果验证当前网络环境的访问与功能，不代表所有地区直连、移动端或公网性能验收。
+
+本轮只发布固定主演示。49 条本地接收批次、15 条人工 draft 及逐条报告、28 条待核验公开候选均未进入 Git 或站点。私有审核副本和看房保存在各自浏览器 origin；本机 5173、5174 和线上地址不会自动互相同步，清理网站数据可能丢失副本。业务待补、规则助手模式和演示证据边界不变。
+
+可复现的默认线上增量回归（网络可直连的环境）：
+
+```powershell
+$env:BHHS_E2E_BASE_URL = 'https://bhhs-gulf-properties-demo.vercel.app'
+npx.cmd playwright test workspace-v3.spec.ts reports-v3.spec.ts --output=.work/public-v3-browser --reporter=list
+Remove-Item Env:BHHS_E2E_BASE_URL
+```
+
+本机实际使用的代理配置、脚本和产物均在忽略目录 `.work/release-20260903/`：`history-audit.json`、`deployment-code.json`、`public-access-v3.json`、`public-acceptance-receipt.json`、`browser-v3-proxy.log`、`browser-proxy/`；首次网络失败保留于 `browser/`。公开构建和测试日志为 `.work/release-public-build.log` 与 `.work/release-unit.log`。临时配置只用于当前主机验收，不写入应用默认网络配置。

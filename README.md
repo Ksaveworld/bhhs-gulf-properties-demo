@@ -4,7 +4,7 @@
 
 公开代码仓库：[Ksaveworld/bhhs-gulf-properties-demo](https://github.com/Ksaveworld/bhhs-gulf-properties-demo)。主分支为 `main`，本地运行方式见下文。
 
-**此前发布的在线 Demo：[bhhs-gulf-properties-demo.vercel.app](https://bhhs-gulf-properties-demo.vercel.app)**。2026-09-03 UTC 部署时已用全新匿名 Chrome 实际验证，无需访客登录。**本轮面积口径与样本联调仅在本地完成，未 push 或部署；在线版本不包含本轮修改。**
+**在线 Demo：[bhhs-gulf-properties-demo.vercel.app](https://bhhs-gulf-properties-demo.vercel.app)**。用户追加上线授权后，2026-09-03 UTC 已发布本轮面积口径审核与中文条件核对代码（实现提交 `7531e76`）。公开版本继续使用固定的虚构主演示数据；49 条接收批次及其对照报告仍只保留在本地。发布验证见 [开发交接](docs/dev-handoff.md)。
 
 **当前默认数据全部虚构。** 项目包含 10 个房源、11 条挂牌快照、8 条交易、9 条关联、6 位客户的 8 份独立需求和 8 条匹配参考。价格、客户陈述、房屋身份和来源都是交互样例，不代表 BHHS 事实或产品已确认规则。
 

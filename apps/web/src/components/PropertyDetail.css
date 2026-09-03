@@ -118,6 +118,9 @@
 .property-detail .pd-client-footer .ant-btn { height: auto; min-height: 34px; padding-top: 7px; padding-bottom: 7px; white-space: normal; text-align: left; color: var(--pd-wine); border-color: #cdb7c4; font-size: 12px; }
 
 /* A person appears once; every requirement retains its own evidence. */
+.property-detail .pd-records-heading { margin: 28px 0 12px; }
+.property-detail .pd-transaction[data-transaction-id] { scroll-margin-top: 15px; }
+.property-detail .pd-transaction[data-transaction-id]:focus { outline: 2px solid var(--pd-wine); outline-offset: 3px; }
 .property-detail .pd-client-sort { display: grid; grid-template-columns: auto minmax(180px, 230px); justify-content: start; align-items: center; gap: 9px 14px; }
 .property-detail .pd-client-sort label { font-size: 12px; font-weight: 600; }
 .property-detail .pd-client-sort p { grid-column: 1 / -1; }

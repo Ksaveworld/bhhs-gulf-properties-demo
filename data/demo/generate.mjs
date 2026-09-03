@@ -49,6 +49,8 @@ const transactions = [
   transaction('004', { area_name: 'Downtown Dubai', building_name: 'Demo Downtown Comparable', amount: 3050000, area_value: 1420, transaction_date: '2026-05-12' }),
   transaction('005', { transaction_scope: 'partial_share', amount: 950000, transaction_date: '2025-08-08', evidence_excerpt: 'Synthetic transfer of a partial share. This is not a whole-unit sale price.' }),
   transaction('006', { property_id: 'DEMO-P-004', area_name: 'Palm Jumeirah', building_name: 'Demo Palm Garden', unit_ref: 'DEMO-UNIT-004', property_type: 'villa', bedrooms: 3, amount: 4800000, area_value: 3100, transaction_date: '2023-04-18' }),
+  transaction('007', { property_id: 'DEMO-P-001', building_name: 'Demo Marina Vista', unit_ref: 'DEMO-UNIT-001', transaction_date: '2020-03-12', amount: 1650000, area_value: 1280 }),
+  transaction('008', { property_id: 'DEMO-P-001', building_name: 'Demo Marina Vista', unit_ref: 'DEMO-UNIT-001', transaction_date: '2022-08-06', amount: 1920000, area_value: 1280 }),
 ];
 const link = (id, listingId, transactionId, overrides) => ({
   link_id: `DEMO-LINK-${id}`, listing_id: `DEMO-L-${listingId}`, transaction_id: `DEMO-T-${transactionId}`,
@@ -66,6 +68,8 @@ const links = [
   link('005', '001', '005', { pricing_eligible: 'no', match_basis: 'Same synthetic area, but partial ownership transferred.', differences: 'Partial-share transfer cannot be compared with whole-unit asking price.', notes: `${syntheticNote} Excluded from price references: partial share.` }),
   link('006', '004', '006', { relation_type: 'exact_property', match_basis: 'Synthetic stable identity DEMO-P-004 and DEMO-UNIT-004 is explicitly the same in both invented source records.', differences: 'Transaction occurred in 2023; no time or property-condition adjustment.' }),
   link('007', '002', '002'),
+  link('008', '001', '007', { relation_type: 'exact_property', match_basis: 'Synthetic stable identity DEMO-P-001 and DEMO-UNIT-001 is explicitly the same in both invented source records.', differences: 'Invented 2020 sale. No adjustment for condition or market movement.' }),
+  link('009', '001', '008', { relation_type: 'exact_property', match_basis: 'Synthetic stable identity DEMO-P-001 and DEMO-UNIT-001 is explicitly the same in both invented source records.', differences: 'Invented 2022 sale. No adjustment for condition or market movement.' }),
 ];
 
 const requirement = (id, overrides) => ({

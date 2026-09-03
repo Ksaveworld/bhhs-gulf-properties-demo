@@ -69,7 +69,7 @@ test('details preserve identity, original units and distinct price evidence; pro
   await drawer.getByRole('tab', { name: 'Price evidence', exact: true }).click();
   const history = drawer.locator('.pd-history-section');
   const comps = drawer.locator('.pd-comparable-section');
-  await expect(history.getByText('DEMO-T-001', { exact: true })).toBeVisible();
+  await expect(history.getByRole('article', { name: 'Same-property transaction DEMO-T-001', exact: true }).getByText('DEMO-T-001', { exact: true })).toBeVisible();
   await expect(comps.getByText('DEMO-T-002', { exact: true })).toBeVisible();
   await expect(history.getByText('DEMO-T-002', { exact: true })).toHaveCount(0);
   await expect(comps.getByText('DEMO-T-001', { exact: true })).toHaveCount(0);
@@ -93,7 +93,7 @@ test('no-history, absent measurements and withdrawn states remain honest', async
   await page.getByTestId('listing-DEMO-L-008').getByRole('button', { name: /^Open / }).click();
   const drawer = page.getByRole('dialog');
   await drawer.getByRole('tab', { name: 'Price evidence' }).click();
-  await expect(drawer.getByText('No verified same-property sale history.')).toBeVisible();
+  await expect(drawer.getByText('No available same-property sale history.')).toBeVisible();
   await expect(drawer.getByText('No eligible comparable sale records.')).toBeVisible();
   await drawer.getByRole('button', { name: 'Close', exact: true }).click();
   await scope.getByRole('button', { name: 'Reset filters', exact: true }).click();

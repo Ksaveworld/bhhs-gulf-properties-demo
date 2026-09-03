@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, Button, Descriptions, Drawer, Empty, Select, Space, Tabs, Tag } from 'antd';
 import type {
   ClientRequirement,
@@ -10,6 +10,8 @@ import type {
 } from '../../../../shared/types';
 import { buildClientGroups, countClientGroups, CLIENT_SORT_DESCRIPTIONS, type ClientSort, type ClientGroup, type RequirementAssessment } from '../../../../shared/client-priorities';
 import { getPriceEvidence } from '../../../../shared/pricing';
+import { uniqueHistoryRecords } from '../../../../shared/transaction-history';
+import { TransactionHistory } from './TransactionHistory';
 import './PropertyDetail.css';
 
 interface PropertyDetailProps {
@@ -173,7 +175,7 @@ function TransactionEvidence({ transaction, link, comparable }: {
   comparable: boolean;
 }) {
   return (
-    <article className="pd-transaction" aria-label={`${comparable ? 'Comparable transaction' : 'Same-property transaction'} ${transaction.transaction_id}`}>
+    <article className="pd-transaction" tabIndex={comparable ? undefined : -1} data-transaction-id={comparable ? undefined : transaction.transaction_id} aria-label={`${comparable ? 'Comparable transaction' : 'Same-property transaction'} ${transaction.transaction_id}`}>
       <header className="pd-transaction-heading">
         <div><span className="pd-eyebrow">{label(transaction.date_basis)}</span><h4>{date(transaction.transaction_date)}</h4></div>
         <div className="pd-transaction-amount"><strong>{money(transaction.amount, transaction.currency)}</strong><DataTag kind={transaction.data_kind} /></div>
@@ -214,17 +216,28 @@ function TransactionEvidence({ transaction, link, comparable }: {
 
 function PriceEvidence({ listing, dataset }: { listing: ListingSnapshot; dataset: Dataset }) {
   const evidence = getPriceEvidence(listing, dataset);
+  const history = uniqueHistoryRecords(evidence.history);
+  const evidenceRoot = useRef<HTMLDivElement>(null);
+  function openTransaction(transactionId: string) {
+    const card = Array.from(evidenceRoot.current?.querySelectorAll<HTMLElement>('article[data-transaction-id]') ?? [])
+      .find(element => element.dataset.transactionId === transactionId);
+    if (!card) return;
+    const source = card.querySelector<HTMLDetailsElement>('details.pd-source-details');
+    if (source) source.open = true;
+    card.focus({ preventScroll: true });
+    card.scrollIntoView({ block: 'start' });
+  }
   return (
-    <div className="pd-tab-content">
+    <div className="pd-tab-content" ref={evidenceRoot}>
       <p className="pd-intro">Recorded sale evidence is shown in its original currency, area unit and date basis. These records do not establish a valuation or a future sale price.</p>
       <section className="pd-section pd-history-section" aria-labelledby="pd-same-property-history">
-        <div className="pd-section-heading"><h3 id="pd-same-property-history">Same-property history</h3><Tag>{evidence.history.length} record{evidence.history.length === 1 ? '' : 's'}</Tag></div>
+        <div className="pd-section-heading"><h3 id="pd-same-property-history">Same-property history</h3><Tag>{history.length} record{history.length === 1 ? '' : 's'}</Tag></div>
         <p className="pd-field-note">Eligible sale records with a verified association to this same property. A transaction ID alone does not identify a property.</p>
-        {evidence.history.length ? evidence.history.map(({ transaction, link }) => (
-          <TransactionEvidence key={link.link_id} transaction={transaction} link={link} comparable={false} />
-        )) : (
-          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={<span>No verified same-property sale history.<br /><span className="pd-muted">A reviewed sale record and property-identity evidence are needed.</span></span>} />
-        )}
+        <TransactionHistory key={listing.snapshot_id} records={history} onSelectRecord={openTransaction} />
+        {history.length > 0 && <h4 className="pd-records-heading">Original transaction records</h4>}
+        {history.slice().reverse().map(({ transaction, link }) => (
+          <TransactionEvidence key={transaction.transaction_id} transaction={transaction} link={link} comparable={false} />
+        ))}
       </section>
       <section className="pd-section pd-comparable-section" aria-labelledby="pd-comparable-transactions">
         <div className="pd-section-heading"><h3 id="pd-comparable-transactions">Comparable transactions</h3><Tag>{evidence.comparables.length} record{evidence.comparables.length === 1 ? '' : 's'}</Tag></div>
@@ -336,7 +349,7 @@ export function PropertyDetail({ listing, dataset, requirements, onClose, onView
           {listing.data_kind === 'demo' && <div className="pd-demo-notice" role="note">Illustrative demo property, prices and evidence. Not a real BHHS listing or verified market information.</div>}
           <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
             { key: 'overview', label: 'Overview', children: <Overview listing={listing} /> },
-            { key: 'evidence', label: 'Price evidence', children: <PriceEvidence listing={listing} dataset={dataset} /> },
+            { key: 'evidence', label: 'Price evidence', children: <PriceEvidence key={listing.snapshot_id} listing={listing} dataset={dataset} /> },
             { key: 'clients', label: `Potential clients (${new Set(requirements.map(r => r.client_id)).size} clients)`, children: <PotentialClients key={listing.snapshot_id} listing={listing} requirements={requirements} onViewClient={onViewClient} /> },
           ]} />
         </>

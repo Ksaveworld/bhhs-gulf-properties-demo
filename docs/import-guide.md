@@ -2,7 +2,7 @@
 
 ## 准备文件
 
-字段模板及含义以 `docs/data-contract.md`、`data/templates/schema.json` 为准，导入器不改字段 key。产品 A 填 `listing_snapshots.csv`、`transactions.csv`、`listing_transaction_links.csv`；产品 B 填 `client_requirements.csv`、`match_reference.csv`。
+字段模板及含义以 `docs/data-contract.md`、`data/templates/schema.json` 为准，导入器不改字段 key。当前五表输入统一由用户收口：房源与证据使用 `listing_snapshots.csv`、`transactions.csv`、`listing_transaction_links.csv`；需求及人工参考使用 `client_requirements.csv`、`match_reference.csv`。
 
 当前模板为 **v1.1.0**，客户新增选填 `area_basis`（`internal/gross/built_up/land/unknown`），其余既有英文 key 保留。旧 v1.0.0 CSV 缺少该列或 JSON 缺少该字段仍可接收；新旧空模板分别保存在 `data/templates/v1.1.0/` 和 `data/templates/v1.0.0/`，不覆盖已填原件。新版 Excel 为 `outputs/area-basis-v1.1.0/BHHS_数据字段模板_v1.1.0.xlsx`，Excel 中文标题不作为接口 key。
 
@@ -74,9 +74,13 @@ node --import tsx tools/compare-match-references.mjs data/demo/intake-local/cb36
 - `pricing_eligible=no/pending` 的合格来源记录可保留来解释排除原因，但不进入价格计算。通过门槛不表示完成估值校准；可比距离、时间跨度、面积偏差、装修调整等业务阈值仍待产品确认。
 - 人工参考推荐需要满足条件，排除/无匹配需要原因，意愿判断需要证据；价格关联必须属于该案例房源且已经合格。意愿不是成交概率。
 
-`GET /api/dataset` 返回五张表，以及 `meta.mode`、`label`、`loaded_at`、`warnings`、`quarantined_count`。提示只含固定字段名、表名、从 1 开始的数据行号及原因，不含被隔离原始字段值。数据行号不含 CSV 表头，全空行会跳过。原资料由产品保管并按提示修改，API 不另存原始隔离副本。文件级格式错误返回 503 和安全错误说明。`GET /api/health` 同样实时检查数据源。
+`GET /api/dataset` 返回五张表，以及 `meta.mode`、`label`、`loaded_at`、`warnings`、`quarantined_count` 和内部 `storage_namespace`。后者是来源摘要，供浏览器结合五表内容隔离本地副本，不属于产品填写字段，不暴露本机绝对路径。提示只含固定字段名、表名、从 1 开始的数据行号及原因，不含被隔离原始字段值。数据行号不含 CSV 表头，全空行会跳过。原资料由用户保管并按提示修改，API 不另存原始隔离副本。文件级格式错误返回 503 和安全错误说明。`GET /api/health` 同样实时检查数据源。
+
+审核副本只在浏览器保存，不进入以上 API 或命令行报告。新版本独立目录、报告留痕和业务复验见 [案例复验准备](case-revalidation.md)；来源及内容变化对已有副本的影响见 [本机保存说明](local-requirements.md)。
 
 ## 待产品补充
+
+当前这些事项统一由用户收口，下表产品 A/B 为历史资料类型分工，不再要求等待另外两位产品。
 
 | 输入 | 负责人 | 用途与缺口 |
 |---|---|---|

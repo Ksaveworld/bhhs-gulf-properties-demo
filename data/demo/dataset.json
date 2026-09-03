@@ -887,6 +887,80 @@
       "usage_status": "approved",
       "reviewed_by": "Demo fixture author (synthetic validation only)",
       "notes": "Invented for interaction testing. Not a real BHHS property, client, transaction, source or business rule. Intentionally incomplete; no wealth, purchasing power or intent inference is allowed."
+    },
+    {
+      "requirement_id": "DEMO-R-007",
+      "client_id": "DEMO-C-001",
+      "client_alias": "Demo client A · Marina home",
+      "sales_owner": "Demo sales team",
+      "raw_request": "Demo second requirement from client A: a ready Dubai Marina apartment with at least 2 bedrooms and parking, up to AED 3m. Purchase by 2026-12-01, move in by 2027-01-01. This is a separate scenario; keep the earlier requirement.",
+      "budget_min": null,
+      "budget_max": 3000000,
+      "currency": "AED",
+      "budget_constraint": "hard",
+      "preferred_areas": [
+        "Dubai Marina"
+      ],
+      "property_types": [
+        "apartment"
+      ],
+      "bedrooms_min": 2,
+      "area_min": null,
+      "area_unit": null,
+      "purchase_purpose": "self_use",
+      "market_preference": "ready",
+      "purchase_by": "2026-12-01",
+      "move_in_by": "2027-01-01",
+      "hard_constraints": "must have parking",
+      "soft_preferences": null,
+      "intent_evidence": "Synthetic client requested a viewing for this separate shortlist.",
+      "missing_questions": null,
+      "data_kind": "demo",
+      "source_name": "Synthetic demo fixture",
+      "source_ref": "DEMO-SOURCE-R-007",
+      "source_date": "2026-09-02",
+      "captured_at": "2026-09-02T12:00:00+04:00",
+      "verification_status": "verified",
+      "usage_status": "approved",
+      "reviewed_by": "Demo fixture author (synthetic validation only)",
+      "notes": "Invented for interaction testing. Not a real BHHS property, client, transaction, source or business rule. Second independent requirement for DEMO-C-001; do not combine budgets or conditions with DEMO-R-001."
+    },
+    {
+      "requirement_id": "DEMO-R-008",
+      "client_id": "DEMO-C-002",
+      "client_alias": "Demo client B · Marina shortlist",
+      "sales_owner": "Demo sales team",
+      "raw_request": "Demo second requirement from client B: a ready two-bedroom apartment in Dubai Marina, at most AED 2.9m. Purchase by 2026-10-15 and move in by 2026-11-01. Keep this separate from the earlier AED 2.6m requirement.",
+      "budget_min": null,
+      "budget_max": 2900000,
+      "currency": "AED",
+      "budget_constraint": "hard",
+      "preferred_areas": [
+        "Dubai Marina"
+      ],
+      "property_types": [
+        "apartment"
+      ],
+      "bedrooms_min": 2,
+      "area_min": null,
+      "area_unit": null,
+      "purchase_purpose": "self_use",
+      "market_preference": "ready",
+      "purchase_by": "2026-10-15",
+      "move_in_by": "2026-11-01",
+      "hard_constraints": null,
+      "soft_preferences": null,
+      "intent_evidence": "Synthetic client asked for a viewing before reviewing an offer.",
+      "missing_questions": null,
+      "data_kind": "demo",
+      "source_name": "Synthetic demo fixture",
+      "source_ref": "DEMO-SOURCE-R-008",
+      "source_date": "2026-09-02",
+      "captured_at": "2026-09-02T12:00:00+04:00",
+      "verification_status": "verified",
+      "usage_status": "approved",
+      "reviewed_by": "Demo fixture author (synthetic validation only)",
+      "notes": "Invented for interaction testing. Not a real BHHS property, client, transaction, source or business rule. Second independent requirement for DEMO-C-002; the original requirement still conflicts with DEMO-L-002."
     }
   ],
   "match_reference": [

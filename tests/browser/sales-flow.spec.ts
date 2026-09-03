@@ -74,9 +74,10 @@ test('details preserve identity, original units and distinct price evidence; pro
   await expect(history.getByText('DEMO-T-002', { exact: true })).toHaveCount(0);
   await expect(comps.getByText('DEMO-T-001', { exact: true })).toHaveCount(0);
   await drawer.getByRole('tab', { name: /Potential clients/ }).click();
-  await expect(drawer.getByRole('article', { name: /Client match/ })).toHaveCount(6);
+  await expect(drawer.locator('article[data-client-id]')).toHaveCount(6);
   const client = drawer.getByRole('article', { name: 'Client match for Demo client A · Marina home', exact: true });
-  await expect(client.getByText('Matched conditions', { exact: true })).toBeVisible();
+  await client.locator('summary').filter({ hasText: 'Review 2 requirements' }).click();
+  await expect(client.locator('[data-requirement-id="DEMO-R-007"]').getByText('Matched conditions', { exact: true })).toBeVisible();
   await expect(client.getByText('Budget fit', { exact: true })).toBeVisible();
   await client.getByRole('button', { name: 'View properties for Demo client A · Marina home', exact: true }).click();
   await expect(drawer).toBeHidden();
@@ -149,7 +150,7 @@ test('1366 by 768 desktop supports the full navigation and draft review', async 
   await ready(page);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
   await page.getByRole('button', { name: /Clients & needs/ }).click();
-  await expect(page.getByRole('heading', { name: '6 client requirements', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '8 client requirements', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Client requirements', exact: true }).click();
   const drawer = page.getByRole('dialog', { name: 'Client requirements', exact: true });
   await drawer.getByRole('button', { name: 'Use demo conversation', exact: true }).click();
@@ -188,5 +189,5 @@ test('an empty accepted dataset provides usable property and client empty states
   await expect(page.getByText('No client requirements have been supplied.')).toBeVisible();
   await page.unroute('**/api/dataset');
   await page.getByRole('button', { name: 'Refresh data', exact: true }).click();
-  await expect(page.getByRole('heading', { name: '6 client requirements', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '8 client requirements', exact: true })).toBeVisible();
 });

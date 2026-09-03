@@ -32,7 +32,8 @@ test('synthetic fixture is complete, marked and retains asking snapshots separat
   const dataset = await loadDataset();
   assert.equal(dataset.meta.mode, 'demo');
   assert.equal(dataset.meta.quarantined_count, 0, dataset.meta.warnings.join('\n'));
-  assert.deepEqual(TABLE_NAMES.map((key) => dataset[key].length), [11, 6, 7, 6, 8]);
+  assert.deepEqual(TABLE_NAMES.map((key) => dataset[key].length), [11, 6, 7, 8, 8]);
+  assert.equal(new Set(dataset.client_requirements.map(row => row.client_id)).size, 6);
   assert.equal(new Set(dataset.listing_snapshots.map((row) => row.listing_id)).size, 10);
   for (const table of SCHEMA.tables) {
     for (const row of dataset[table.key]) {

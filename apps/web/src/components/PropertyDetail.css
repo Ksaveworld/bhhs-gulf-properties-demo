@@ -117,6 +117,46 @@
 .property-detail .pd-client-footer p { margin-top: 5px; color: #515867; font-size: 12px; line-height: 1.7; }
 .property-detail .pd-client-footer .ant-btn { height: auto; min-height: 34px; padding-top: 7px; padding-bottom: 7px; white-space: normal; text-align: left; color: var(--pd-wine); border-color: #cdb7c4; font-size: 12px; }
 
+/* A person appears once; every requirement retains its own evidence. */
+.property-detail .pd-client-counts { display: grid; grid-template-columns: repeat(3, 1fr) 1.45fr; gap: 14px; padding: 18px 20px; border: 1px solid var(--pd-line); background: #fff; border-radius: 6px; }
+.property-detail .pd-client-counts > div { display: flex; flex-direction: column; gap: 5px; }
+.property-detail .pd-client-counts strong { font-family: Georgia, serif; font-size: 27px; font-weight: 400; color: var(--pd-wine); }
+.property-detail .pd-client-counts span { font-size: 11px; line-height: 1.5; color: var(--pd-muted); }
+.property-detail .pd-client-counts > div:first-child strong { color: var(--pd-green); }
+.property-detail .pd-client-group { display: flex; flex-direction: column; gap: 15px; }
+.property-detail .pd-client-group > h3 { font-size: 16px; margin: 4px 0 0; }
+.property-detail .pd-client-heading { margin-bottom: 14px; }
+.property-detail .pd-client-heading h3 { font-size: 17px; }
+.property-detail .pd-client-key-facts { display: grid; grid-template-columns: 1.05fr 1.2fr 1fr; gap: 16px; padding: 15px; background: #f7f8fa; border-radius: 4px; }
+.property-detail .pd-client-key-facts > div { display: flex; flex-direction: column; gap: 5px; }
+.property-detail .pd-client-key-facts span, .property-detail .pd-client-key-facts small { color: var(--pd-muted); font-size: 11px; line-height: 1.65; }
+.property-detail .pd-client-key-facts strong { font-size: 12px; line-height: 1.65; font-weight: 600; }
+.property-detail .pd-budget-within { color: var(--pd-green); }
+.property-detail .pd-budget-above, .property-detail .pd-budget-below { color: var(--pd-amber); }
+.property-detail .pd-client-intent { margin-top: 15px; }
+.property-detail .pd-client-intent p { margin: 5px 0; font-size: 12px; line-height: 1.7; color: #515867; }
+.property-detail .pd-client-open-question { margin-top: 14px; color: #765a35; padding: 9px 12px; background: #fbf7ef; border-radius: 4px; font-size: 12px; line-height: 1.65; }
+.property-detail .pd-client-next { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--pd-line); }
+.property-detail .pd-client-next p { max-width: 58%; color: var(--pd-muted); font-size: 11px; line-height: 1.65; }
+.property-detail .pd-client-next p strong { display: block; color: var(--pd-ink); }
+.property-detail .pd-client-next .ant-btn { flex-shrink: 0; max-width: 48%; height: auto; white-space: normal; font-size: 11px; text-align: left; }
+.property-detail .pd-client-requirements { margin-top: 14px; padding-top: 11px; border-top: 1px solid var(--pd-line); }
+.property-detail .pd-client-requirements > summary, .property-detail .pd-conflict-clients > summary { color: var(--pd-wine); font-size: 12px; font-weight: 600; cursor: pointer; padding: 5px 0; }
+.property-detail .pd-client-requirements[open] > .pd-field-note { margin-top: 10px; }
+.property-detail .pd-requirement-assessment { margin-top: 18px; padding: 17px; border: 1px solid var(--pd-line); border-radius: 4px; }
+.property-detail .pd-requirement-heading { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.property-detail .pd-requirement-assessment .pd-reasons-grid { margin-top: 16px; }
+.property-detail .pd-conflict-clients { padding: 16px 19px; border: 1px solid #e7d9dc; border-radius: 6px; background: #fcfafb; }
+.property-detail .pd-conflict-clients > summary { color: #87565b; }
+.property-detail .pd-conflict-clients > .pd-field-note { margin: 9px 0 15px; }
+
+@media (max-width: 640px) {
+  .property-detail .pd-client-counts { grid-template-columns: repeat(2, 1fr); }
+  .property-detail .pd-client-key-facts { grid-template-columns: 1fr; gap: 14px; }
+  .property-detail .pd-client-next { flex-direction: column; }
+  .property-detail .pd-client-next p, .property-detail .pd-client-next .ant-btn { max-width: 100%; }
+}
+
 @media (max-width: 640px) {
   .property-detail .ant-drawer-header { padding: 19px 16px; }
   .property-detail .ant-drawer-body { padding: 0 16px 24px; }

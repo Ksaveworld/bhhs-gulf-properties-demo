@@ -8,7 +8,7 @@ import type {
   SourceRecord,
   Transaction,
 } from '../../../../shared/types';
-import { evaluateMatch } from '../../../../shared/matching';
+import { buildClientGroups, countClientGroups, type ClientGroup, type RequirementAssessment } from '../../../../shared/client-priorities';
 import { getPriceEvidence } from '../../../../shared/pricing';
 import './PropertyDetail.css';
 
@@ -249,45 +249,68 @@ function ReasonList({ title, reasons, empty, tone }: { title: string; reasons: s
   );
 }
 
-function PotentialClients({ listing, requirements, onViewClient }: Pick<PropertyDetailProps, 'requirements' | 'onViewClient'> & { listing: ListingSnapshot }) {
-  const order = { match: 0, review: 1, excluded: 2 };
-  const clients = requirements.map((requirement) => ({ requirement, result: evaluateMatch(listing, requirement) }))
-    .sort((a, b) => order[a.result.status] - order[b.result.status] || a.requirement.client_alias.localeCompare(b.requirement.client_alias));
-  return (
-    <div className="pd-tab-content">
-      <p className="pd-intro">Compare this property with the recorded client requirements. Conditions and open questions support a sales conversation; they do not estimate a client's assets or chance of purchase.</p>
-      {!clients.length && <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No client requirements available. Add or import a sales-reviewed requirement to compare." />}
-      {clients.map(({ requirement, result }) => (
-        <article className={`pd-client pd-client-${result.status}`} key={requirement.requirement_id} aria-label={`Client match for ${requirement.client_alias}`}>
-          <header className="pd-client-heading">
-            <div><span className="pd-eyebrow">{label(requirement.purchase_purpose)}</span><h3>{requirement.client_alias}</h3><span className="pd-muted">{requirement.sales_owner ? `Sales owner: ${requirement.sales_owner}` : 'Sales owner not supplied'}</span></div>
-            <div className="pd-client-tags"><DataTag kind={requirement.data_kind} /><Tag className={`pd-status-${result.status}`}>{result.status === 'match' ? 'Conditions met' : result.status === 'review' ? 'Needs clarification' : 'Hard condition conflict'}</Tag></div>
-          </header>
-          <div className="pd-client-summary">
-            <div><span>Budget fit</span><strong>{result.budget_fit}</strong></div>
-            <div><span>Known purchase date</span><strong>{result.purchase_by || 'To be confirmed'}</strong></div>
-          </div>
-          <div className="pd-reasons-grid">
-            <ReasonList title="Matched conditions" reasons={result.matched} empty="No confirmed conditions yet." tone="matched" />
-            <ReasonList title="Conflicts & differences" reasons={result.conflicts} empty="No conflicts identified in the supplied fields." tone="conflict" />
-          </div>
-          <ReasonList title="Information to confirm" reasons={result.unknowns} empty="No additional gaps identified by this rule comparison." tone="unknown" />
-          <div className="pd-intent-evidence"><h4>Stated intent evidence</h4><p>{result.intent_evidence || 'No intent evidence supplied.'}</p><span className="pd-field-note">Client or sales statements only. No probability or purchasing-power assessment.</span></div>
-          <details className="pd-source-details">
-            <summary>Client requirement & source</summary>
-            <div className="pd-identity-grid pd-identity-grid-two">
-              <div><span>Client ID</span><code>{requirement.client_id}</code></div>
-              <div><span>Requirement ID</span><code>{requirement.requirement_id}</code></div>
-            </div>
-            <h4>Recorded request</h4><blockquote className="pd-raw-request">{requirement.raw_request || 'Not supplied'}</blockquote>
-            <SourceDetails source={requirement} />
-            {requirement.notes && <p className="pd-field-note">{requirement.notes}</p>}
-          </details>
-          <footer className="pd-client-footer"><div><h4>Next step</h4><p>{result.next_action}</p></div><Button onClick={() => onViewClient(requirement)}>View properties for {requirement.client_alias}</Button></footer>
-        </article>
-      ))}
+function RequirementAssessmentDetails({ assessment, onViewClient }: {
+  assessment: RequirementAssessment; onViewClient: PropertyDetailProps['onViewClient'];
+}) {
+  const { requirement, result, budget, timing } = assessment;
+  return <section className="pd-requirement-assessment" aria-label={`Requirement ${requirement.requirement_id}`} data-requirement-id={requirement.requirement_id}>
+    <div className="pd-requirement-heading"><code>{requirement.requirement_id}</code><Tag className={`pd-status-${result.status}`}>{result.status === 'match' ? 'Conditions met' : result.status === 'review' ? 'Needs clarification' : 'Hard condition conflict'}</Tag></div>
+    <p className="pd-field-note">{label(requirement.purchase_purpose)} · Sales owner: {requirement.sales_owner || 'Not supplied'}</p>
+    <p className="pd-field-note">{budget.range_label} · {budget.label}</p>
+    <p className="pd-field-note">Purchase by: {result.purchase_by || 'To be confirmed'} · {timing.label}</p>
+    <div className="pd-reasons-grid">
+      <ReasonList title="Matched conditions" reasons={result.matched} empty="No confirmed conditions yet." tone="matched" />
+      <ReasonList title="Conflicts & differences" reasons={result.conflicts} empty="No conflicts identified in the supplied fields." tone="conflict" />
     </div>
-  );
+    <ReasonList title="Information to confirm" reasons={result.unknowns} empty="No additional gaps identified by this rule comparison." tone="unknown" />
+    <div className="pd-intent-evidence"><h4>Stated intent evidence</h4><p>{result.intent_evidence || 'Not supplied. Confirm the client’s stated interest.'}</p></div>
+    <details className="pd-source-details">
+      <summary>Client requirement & source</summary>
+      <h4>Recorded request</h4><blockquote className="pd-raw-request">{requirement.raw_request || 'Not supplied'}</blockquote>
+      <SourceDetails source={requirement} />
+      {requirement.notes && <p className="pd-field-note">{requirement.notes}</p>}
+    </details>
+    <footer className="pd-client-footer"><p>{result.next_action}</p><Button onClick={() => onViewClient(requirement)}>View properties for {requirement.requirement_id}</Button></footer>
+  </section>;
+}
+
+function ClientCard({ client, listing, onViewClient }: { client: ClientGroup; listing: ListingSnapshot; onViewClient: PropertyDetailProps['onViewClient'] }) {
+  const { requirement, result, budget, timing } = client.primary;
+  return <article className={`pd-client pd-client-${client.status}`} aria-label={`Client match for ${client.client_alias}`} data-client-id={client.client_id}>
+    <header className="pd-client-heading">
+      <div><h3>{client.client_alias}</h3><span className="pd-muted">{client.client_id} · Summary from {requirement.requirement_id}</span></div>
+      <div className="pd-client-tags"><DataTag kind={requirement.data_kind} /><Tag className={`pd-status-${client.status}`}>{client.status === 'match' ? 'Conditions met' : client.status === 'review' ? 'Needs clarification' : 'Hard condition conflict'}</Tag></div>
+    </header>
+    <div className="pd-client-key-facts">
+      <div><span>Stated budget</span><strong>{budget.range_label}</strong><small>{requirement.budget_constraint === 'unknown' ? 'Flexibility not supplied' : `${requirement.budget_constraint} limit`}</small></div>
+      <div><span>Budget fit</span><strong className={`pd-budget-${budget.status}`}>{budget.label}</strong><small>Asking price: {money(listing.asking_price, listing.currency)}</small></div>
+      <div><span>Purchase by</span><strong>{result.purchase_by || 'To be confirmed'}</strong><small>{timing.label}</small></div>
+    </div>
+    <div className="pd-client-intent"><h4>Stated intent evidence</h4><p>{result.intent_evidence || 'No intent evidence supplied. Ask about viewing interest and next steps.'}</p><span className="pd-field-note">Source: <SourceReference value={requirement.source_ref} /></span></div>
+    {(result.conflicts.length > 0 || result.unknowns.length > 0) && <p className="pd-client-open-question"><strong>{result.conflicts.length ? 'Difference to review: ' : 'To clarify: '}</strong>{result.conflicts[0] || result.unknowns[0]}{result.conflicts.length + result.unknowns.length > 1 ? ` (+${result.conflicts.length + result.unknowns.length - 1} more in the requirement)` : ''}</p>}
+    <footer className="pd-client-next"><p><strong>Next step</strong> {result.next_action}</p><Button onClick={() => onViewClient(requirement)}>View properties for {client.client_alias}</Button></footer>
+    <details className="pd-client-requirements"><summary>Review {client.requirements.length} requirement{client.requirements.length === 1 ? '' : 's'}</summary><p className="pd-field-note">Each requirement is assessed separately. This client is counted once using their best condition status; budgets and preferences are never combined.</p>{client.requirements.map(assessment => <RequirementAssessmentDetails key={assessment.requirement.requirement_id} assessment={assessment} onViewClient={onViewClient} />)}</details>
+  </article>;
+}
+
+function PotentialClients({ listing, requirements, onViewClient }: Pick<PropertyDetailProps, 'requirements' | 'onViewClient'> & { listing: ListingSnapshot }) {
+  const clients = buildClientGroups(listing, requirements);
+  const counts = countClientGroups(clients);
+  const renderGroup = (status: ClientGroup['status']) => clients.filter(client => client.status === status).map(client => <ClientCard key={client.client_id} client={client} listing={listing} onViewClient={onViewClient} />);
+  return <div className="pd-tab-content">
+    <div className="pd-client-counts" aria-label="Client counts">
+      <div><strong data-testid="client-count-match">{counts.match}</strong><span>conditions met</span></div>
+      <div><strong data-testid="client-count-review">{counts.review}</strong><span>need clarification</span></div>
+      <div><strong data-testid="client-count-excluded">{counts.excluded}</strong><span>hard conflicts</span></div>
+      <div><strong data-testid="client-count-total">{counts.total}</strong><span>unique clients · {requirements.length} requirements</span></div>
+    </div>
+    <p className="pd-intro">Start with clients whose recorded conditions are met. Budget and stated intent support a follow-up conversation; no sale probability or combined score is assigned.</p>
+    {!clients.length ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No client requirements available. Add or import a sales-reviewed requirement to compare." /> : <>
+      <section className="pd-client-group" aria-label="Customers with conditions met"><h3>Conditions met ({counts.match} clients)</h3>{counts.match ? renderGroup('match') : <p className="pd-field-note">No clients have all recorded conditions confirmed for this property. Review the open questions below.</p>}</section>
+      <section className="pd-client-group" aria-label="Customers needing clarification"><h3>Needs clarification ({counts.review} clients)</h3>{counts.review ? renderGroup('review') : <p className="pd-field-note">No clients in this group.</p>}</section>
+      {counts.excluded > 0 && <details className="pd-conflict-clients"><summary>Hard condition conflicts ({counts.excluded} client{counts.excluded === 1 ? '' : 's'})</summary><p className="pd-field-note">These clients are excluded from the conditions-met count. Review each conflict before considering a follow-up.</p><div className="pd-client-group">{renderGroup('excluded')}</div></details>}
+    </>}
+  </div>;
 }
 
 export function PropertyDetail({ listing, dataset, requirements, onClose, onViewClient }: PropertyDetailProps) {
@@ -304,7 +327,7 @@ export function PropertyDetail({ listing, dataset, requirements, onClose, onView
           <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
             { key: 'overview', label: 'Overview', children: <Overview listing={listing} /> },
             { key: 'evidence', label: 'Price evidence', children: <PriceEvidence listing={listing} dataset={dataset} /> },
-            { key: 'clients', label: `Potential clients (${requirements.length})`, children: <PotentialClients listing={listing} requirements={requirements} onViewClient={onViewClient} /> },
+            { key: 'clients', label: `Potential clients (${new Set(requirements.map(r => r.client_id)).size} clients)`, children: <PotentialClients key={listing.snapshot_id} listing={listing} requirements={requirements} onViewClient={onViewClient} /> },
           ]} />
         </>
       )}

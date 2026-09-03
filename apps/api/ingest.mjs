@@ -1,5 +1,6 @@
 import { readFile, readdir, realpath, stat } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'csv-parse/sync';
@@ -281,5 +282,10 @@ export async function loadDataset(configuredPath = process.env.BHHS_DATA_DIR) {
     try { raw = JSON.parse((await readFile(resolved, 'utf8')).replace(/^\uFEFF/, '')); }
     catch { throw new DataImportError('INVALID_JSON', 'Dataset JSON could not be parsed.'); }
   }
-  return validateDataset(raw, { mode, warnings });
+  const dataset = validateDataset(raw, { mode, warnings });
+  // Stable across refreshes and machines with the same relative source; never expose a local path.
+  // The browser separately fingerprints the accepted five-table content to isolate source versions.
+  const source = path.relative(WORKSPACE_ROOT, resolved).split(path.sep).join('/');
+  dataset.meta.storage_namespace = `bhhs-source-v1:${createHash('sha256').update(`${mode}:${source}`).digest('hex')}`;
+  return dataset;
 }

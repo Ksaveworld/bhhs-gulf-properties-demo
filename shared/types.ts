@@ -140,6 +140,8 @@ export interface Dataset {
     loaded_at: string;
     warnings: string[];
     quarantined_count: number;
+    /** Opaque source identity for browser storage; not a product field or review status. */
+    storage_namespace?: string;
   };
 }
 

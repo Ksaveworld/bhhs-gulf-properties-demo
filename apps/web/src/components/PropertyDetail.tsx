@@ -214,7 +214,7 @@ function TransactionEvidence({ transaction, link, comparable }: {
   );
 }
 
-function PriceEvidence({ listing, dataset }: { listing: ListingSnapshot; dataset: Dataset }) {
+export function PriceEvidence({ listing, dataset }: { listing: ListingSnapshot; dataset: Dataset }) {
   const evidence = getPriceEvidence(listing, dataset);
   const history = uniqueHistoryRecords(evidence.history);
   const evidenceRoot = useRef<HTMLDivElement>(null);
@@ -318,6 +318,7 @@ function PotentialClients({ listing, requirements, onViewClient }: Pick<Property
       <div><strong data-testid="client-count-excluded">{counts.excluded}</strong><span>hard conflicts</span></div>
       <div><strong data-testid="client-count-total">{counts.total}</strong><span>unique clients · {requirements.length} requirements</span></div>
     </div>
+    <p className="pd-field-note">Total = conditions met + needs clarification + hard conflicts. Each visible client is counted once using their best recorded requirement status. All names are available below, including the expandable conflict group.</p>
     <p className="pd-intro">Start with clients whose recorded conditions are met. Budget and stated intent support a follow-up conversation; no sale probability or combined score is assigned.</p>
     {clients.length > 0 && <div className="pd-client-sort">
       <label htmlFor="pd-client-sort">Sort clients</label>

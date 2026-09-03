@@ -115,6 +115,7 @@ function negatedOrConditional(text: string): boolean {
 /** Advisory review only. Original text, structured fields and hard constraints are never rewritten. */
 export function reviewRawRequest(requirement: ClientRequirement): string[] {
   const warnings = new Set<string>();
+  let explicitBudgetCap = false, explicitBudgetRange = false;
   const addReview = (review: ConstraintSegmentReview) => {
     if (review.kind !== 'equivalent' && review.reason) warnings.add(`Original request review: ${review.reason}`);
   };
@@ -132,10 +133,11 @@ export function reviewRawRequest(requirement: ClientRequirement): string[] {
     if (budgetStart >= 0 && !uncertain) {
       const budgetClause = clause.slice(budgetStart);
       const cap = reviewConstraintSegment(budgetClause, requirement);
-      if (cap.fields.includes('budget_max')) addReview(cap);
+      if (cap.fields.includes('budget_max')) { explicitBudgetCap = true; addReview(cap); }
       else {
         const range = budgetClause.match(new RegExp(`^预算(?:范围)?(?:为|是|[:：])?\\s*${CURRENCY}\\s*(${NUMBER})\\s*${SUFFIX}\\s*(?:-|–|—|至|到)\\s*(?:${CURRENCY}\\s*)?(${NUMBER})\\s*${SUFFIX}$`, 'i'));
         if (range) {
+          explicitBudgetRange = true;
           const firstCurrency = range[1].toUpperCase();
           const secondCurrency = range[4]?.toUpperCase() ?? firstCurrency;
           if (firstCurrency !== secondCurrency) warnings.add('Original request review: Budget range mentions different currencies; confirm the range without assuming FX.');
@@ -196,6 +198,9 @@ export function reviewRawRequest(requirement: ClientRequirement): string[] {
     if (/(?:[一二两三四五六七八九十\d]+个?月内|年内|尽快|下周|下月|今年|明年).*(?:入住|购买|购房)|(?:入住|购买|购房).*(?:年内|尽快|下周|下月|今年|明年)/u.test(clause)) {
       warnings.add('Original request uses relative purchase or move-in timing; confirm complete dates without inventing a date or swapping their purposes.');
     }
+  }
+  if (explicitBudgetCap && !explicitBudgetRange && requirement.budget_min !== null) {
+    warnings.add('Original request only establishes a budget cap; budget_min also contains a value. Confirm the source of that lower bound before treating it as the client’s requirement.');
   }
   return [...warnings];
 }

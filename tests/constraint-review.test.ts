@@ -17,6 +17,13 @@ function requirement(change: Partial<ClientRequirement> = {}): ClientRequirement
   };
 }
 
+test('a structured lower budget needs its own evidence when the original only states a cap', () => {
+  const capOnly = requirement({ raw_request: '预算上限AED 1.4M' });
+  assert.ok(reviewRawRequest(capOnly).some(message => /source of that lower bound/.test(message)));
+  assert.deepEqual(reviewRawRequest({ ...capOnly, budget_min: null }), []);
+  assert.deepEqual(reviewRawRequest({ ...capOnly, raw_request: '预算AED 0.9M-1.4M' }), []);
+});
+
 test('complete explicit budget caps require the same amount, currency and hard-limit status', () => {
   for (const text of ['预算上限AED 1.4M', '预算不超过140万 AED。', '预算不得超过 AED 1,400,000', '预算最高为AED 1400K']) {
     const result = reviewConstraintSegment(text, requirement());

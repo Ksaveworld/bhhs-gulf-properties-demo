@@ -45,6 +45,17 @@ async function expectOriginalWording(drawer: Locator, requirement: ClientRequire
   await expect(drawer.getByRole('textbox', { name: 'Other hard restrictions', exact: true })).toHaveValue(requirement.hard_constraints!);
 }
 
+test('a lower budget absent from a cap-only original remains visible and flagged for evidence', async ({ page, request }) => {
+  await loadSyntheticRequest(page, request, { budget_min: 1200000 });
+  await expect(page.getByTestId('library-text-warning')).toContainText('source of that lower bound');
+  const drawer = await reviewSelected(page);
+  await expect(drawer.getByRole('spinbutton', { name: 'Min. price', exact: true })).toHaveValue('1200000');
+  await expect(drawer.getByTestId('requirement-text-warning')).toContainText('budget_min also contains a value');
+  await drawer.getByRole('button', { name: 'Apply to property library' }).click();
+  await expect(page.getByTestId('result-count')).toHaveText('2');
+  await expect(page.getByTestId('library-text-warning')).toContainText('source of that lower bound');
+});
+
 test('strict Chinese equivalents show their field mapping and an edited budget becomes a visible review conflict', async ({ page, request }) => {
   await page.setViewportSize({ width: 1366, height: 768 });
   const requirement = await loadSyntheticRequest(page, request);

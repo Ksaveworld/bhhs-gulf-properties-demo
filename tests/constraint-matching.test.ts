@@ -7,7 +7,7 @@ import { ruleAssistant } from '../shared/assistant';
 
 const dataset = JSON.parse(readFileSync(new URL('../data/demo/dataset.json', import.meta.url), 'utf8')) as Dataset;
 const listing = latestListings(dataset.listing_snapshots).find(row => row.listing_id === 'DEMO-L-001')!;
-const base = { ...dataset.client_requirements[0], area_basis: 'built_up' as const, soft_preferences: null, missing_questions: null,
+const base = { ...dataset.client_requirements[0], budget_min: null, area_basis: 'built_up' as const, soft_preferences: null, missing_questions: null,
   raw_request: '预算上限AED 2.8M；至少2居和1100 sqft；必须带停车位；现房。',
   hard_constraints: '预算上限AED 2.8M；至少2居和1100 sqft；必须带停车位；现房。' };
 

@@ -117,9 +117,10 @@ test('area conversion preserves basis, unknown basis and invalid budgets have re
   await choose(page, scope, 'Area unit', 'sqm');
   await scope.getByRole('spinbutton', { name: 'Min. area', exact: true }).fill('120.774');
   await expect(page.getByTestId('result-count')).toHaveText('1');
-  await choose(page, scope, 'Area basis', 'unknown');
+  await choose(page, scope, 'Area basis', 'Needs confirmation · 面积口径待确认');
   await expect(page.getByTestId('result-count')).toHaveText('0');
-  await expect(scope.getByText('Select an area basis to compare floor areas. Unknown measurements cannot confirm a match.')).toBeVisible();
+  await expect(scope.getByTestId('library-area-warning')).toContainText('面积口径待确认');
+  await expect(page.getByText('Area comparison is awaiting confirmation.', { exact: true })).toBeVisible();
   await scope.getByRole('spinbutton', { name: 'Min. price', exact: true }).fill('9000000');
   await expect(scope.getByText('Minimum price must not exceed maximum price.')).toBeVisible();
   await scope.getByRole('button', { name: 'Reset filters', exact: true }).click();

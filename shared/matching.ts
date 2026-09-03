@@ -1,4 +1,5 @@
 import type { AreaUnit, ClientRequirement, ListingSnapshot } from './types';
+import { legacyAreaBases, resolveRequirementArea } from './requirement-area';
 
 export interface Filters {
   areas: string[];
@@ -7,7 +8,7 @@ export interface Filters {
   currency: string;
   bedrooms_min: number | null;
   area_min: number | null;
-  area_unit: AreaUnit;
+  area_unit: AreaUnit | null;
   area_basis: string;
   property_types: string[];
   market_preference: string;
@@ -66,6 +67,7 @@ export function filterListings(rows: ListingSnapshot[], filters: Filters): Listi
     }
     if (finite(filters.bedrooms_min) && (!finite(row.bedrooms) || row.bedrooms < filters.bedrooms_min)) return false;
     if (finite(filters.area_min)) {
+      if (!filters.area_unit) return false;
       if (!filters.area_basis || filters.area_basis === 'unknown' || !row.area_basis || row.area_basis === 'unknown' || row.area_basis !== filters.area_basis || !finite(row.area_value) || !row.area_unit) return false;
       if (convertArea(row.area_value, row.area_unit, filters.area_unit) + 1e-8 < filters.area_min) return false;
     }
@@ -93,7 +95,7 @@ const AMENITY_ALIASES: Record<string, string[]> = {
 
 export function parseHardConstraints(text: string | null): { amenities: string[]; area_basis: string; unknowns: string[] } {
   let rest = text ?? '';
-  const basis = rest.match(/area\s*basis\s*:\s*(built_up|internal|gross|land|unknown)\b/i);
+  const bases = legacyAreaBases(text);
   rest = rest.replace(/area\s*basis\s*:\s*(built_up|internal|gross|land|unknown)\b/gi, '');
   const amenities: string[] = [], unknowns: string[] = [];
   for (const segment of rest.split(/[;；\n|]/).map((s) => s.trim()).filter(Boolean)) {
@@ -109,16 +111,17 @@ export function parseHardConstraints(text: string | null): { amenities: string[]
     if (!unmatched && found.length) amenities.push(...found);
     else unknowns.push(segment);
   }
-  return { amenities: [...new Set(amenities)], area_basis: basis?.[1].toLowerCase() ?? '', unknowns };
+  return { amenities: [...new Set(amenities)], area_basis: bases.length === 1 ? bases[0] : '', unknowns };
 }
 
 export function requirementsToFilters(requirement: ClientRequirement): Filters {
   const hard = parseHardConstraints(requirement.hard_constraints);
+  const area = resolveRequirementArea(requirement);
   return {
     ...EMPTY_FILTERS, areas: [...(requirement.preferred_areas ?? [])],
     budget_min: requirement.budget_min, budget_max: requirement.budget_max,
     currency: requirement.currency ?? '', bedrooms_min: requirement.bedrooms_min,
-    area_min: requirement.area_min, area_unit: requirement.area_unit ?? 'sqft', area_basis: hard.area_basis,
+    area_min: requirement.area_min, area_unit: requirement.area_unit, area_basis: area.basis,
     property_types: [...(requirement.property_types ?? [])], market_preference: requirement.market_preference,
     amenities: hard.amenities, move_in_by: requirement.move_in_by,
   };
@@ -144,6 +147,7 @@ export function evaluateMatch(listing: ListingSnapshot, requirement: ClientRequi
   let excluded = false;
   const exclude = (message: string) => { conflicts.push(message); excluded = true; };
   const hard = parseHardConstraints(requirement.hard_constraints);
+  const area = resolveRequirementArea(requirement);
   const selectedAreas = requirement.preferred_areas ?? [];
   if (selectedAreas.length) {
     if (selectedAreas.includes(listing.area_name)) matched.push(`Area: ${listing.area_name}`);
@@ -179,13 +183,14 @@ export function evaluateMatch(listing: ListingSnapshot, requirement: ClientRequi
     if (requirement.budget_constraint === 'unknown' && !unknowns.some((m) => m.includes('hard limit'))) unknowns.push('Budget flexibility has not been confirmed.');
   }
   if (finite(requirement.area_min)) {
-    if (!hard.area_basis || hard.area_basis === 'unknown') unknowns.push('Confirm the required area basis before comparing area.');
+    if (area.status !== 'known') unknowns.push(...area.messages);
     else if (!finite(listing.area_value) || !listing.area_unit || !listing.area_basis || listing.area_basis === 'unknown') unknowns.push('Listing area, unit or area basis is undisclosed.');
-    else if (listing.area_basis !== hard.area_basis) unknowns.push(`Area bases differ (${listing.area_basis} vs ${hard.area_basis}); unit conversion cannot resolve this.`);
+    else if (listing.area_basis !== area.basis) unknowns.push(`Area bases differ (${listing.area_basis} vs ${area.basis}); unit conversion cannot resolve this.`);
     else if (!requirement.area_unit) unknowns.push('Required area unit is missing.');
-    else if (convertArea(listing.area_value, listing.area_unit, requirement.area_unit) + 1e-8 >= requirement.area_min) matched.push(`Area meets ${requirement.area_min} ${requirement.area_unit} minimum on ${hard.area_basis} basis.`);
-    else exclude(`Area is below ${requirement.area_min} ${requirement.area_unit} minimum on ${hard.area_basis} basis.`);
+    else if (convertArea(listing.area_value, listing.area_unit, requirement.area_unit) + 1e-8 >= requirement.area_min) matched.push(`Area meets ${requirement.area_min} ${requirement.area_unit} minimum on ${area.basis} basis.`);
+    else exclude(`Area is below ${requirement.area_min} ${requirement.area_unit} minimum on ${area.basis} basis.`);
   }
+  else if (area.status === 'conflict') unknowns.push(...area.messages);
   if (requirement.market_preference === 'ready' || requirement.market_preference === 'off_plan') {
     if (listing.market_segment === 'unknown') unknowns.push('Ready / off-plan status is unknown.');
     else if (listing.market_segment === requirement.market_preference) matched.push(`Market status: ${listing.market_segment}`);

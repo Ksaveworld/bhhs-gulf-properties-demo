@@ -1,5 +1,5 @@
 import { parseHardConstraints, validDate } from './matching';
-import type { ClientRequirement, Currency } from './types';
+import type { AreaBasis, ClientRequirement, Currency } from './types';
 
 export interface AssistantResult {
   mode: 'rules';
@@ -15,7 +15,7 @@ export function createEmptyRequirement(raw_request = ''): ClientRequirement {
   return {
     requirement_id: 'DRAFT-REQUIREMENT', client_id: 'DRAFT-CLIENT', client_alias: 'Sales request draft', sales_owner: null,
     raw_request, budget_min: null, budget_max: null, currency: null, budget_constraint: 'unknown',
-    preferred_areas: null, property_types: null, bedrooms_min: null, area_min: null, area_unit: null,
+    preferred_areas: null, property_types: null, bedrooms_min: null, area_min: null, area_unit: null, area_basis: null,
     purchase_purpose: 'unknown', market_preference: 'unknown', purchase_by: null, move_in_by: null,
     hard_constraints: null, soft_preferences: null, intent_evidence: null, missing_questions: null,
     data_kind: 'demo', source_name: 'Rules demo: sales-entered draft', source_ref: 'DEMO-RULE-EXTRACTION',
@@ -167,13 +167,13 @@ export const ruleAssistant: AssistantAdapter = {
     if (marketNegation) hardParts.push('Negated ready / off-plan condition: check the original request.');
     const softParts = sentences.flatMap((sentence) => [...sentence.matchAll(/(?:\bprefer(?:red|ably)?\b|\bnice to have\b|偏好|最好)\s*[^,，]+/gi)].map((m) => m[0].trim()));
     const basis = text.match(/\b(?:area\s*basis\s*:\s*)?(built_up|internal|gross|land)\s*(?:area|basis)?\b/i);
-    if (basis && requirement.area_min !== null) hardParts.push(`area basis: ${basis[1].toLowerCase()}`);
-    if (/建筑面积/.test(text) && requirement.area_min !== null && !basis) hardParts.push('area basis: built_up');
+    if (basis && requirement.area_min !== null) set('area_basis', basis[1].toLowerCase() as AreaBasis);
+    if (/建筑面积/.test(text) && requirement.area_min !== null && !basis) set('area_basis', 'built_up');
     if (hardParts.length) set('hard_constraints', [...new Set(hardParts)].join('; '));
     if (softParts.length) set('soft_preferences', softParts.join('; '));
     const parsedHard = parseHardConstraints(requirement.hard_constraints);
     if (parsedHard.unknowns.length) warnings.push(`Hard conditions need manual confirmation: ${parsedHard.unknowns.join('; ')}`);
-    if (requirement.area_min !== null && !parsedHard.area_basis) warnings.push('Area basis is unknown. Confirm internal / gross / built_up / land before applying an area filter.');
+    if (requirement.area_min !== null && !requirement.area_basis) warnings.push('Area basis needs confirmation (面积口径待确认). Confirm internal / gross / built_up / land before applying an area filter.');
     const intent = text.split(/[;；\n。]/).find((part) => /\b(?:schedule|arrange|book)\b[^.]*\bviewing\b|约看|安排看房|预约看房/i.test(part));
     if (intent) set('intent_evidence', intent.trim());
     if (!fields.size) warnings.push('No structured conditions were recognized. The original request is preserved; enter conditions manually.');

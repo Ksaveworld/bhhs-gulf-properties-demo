@@ -4,6 +4,8 @@
 
 已实现房源库为核心的首版主链路，并按 `docs/iteration-02-brief.md` 增量实现客户去重分组、透明排序和同屋成交图/时间线。默认以完全虚构样例联调；真实产品样本和业务验收输入尚待交付。
 
+**公开 Demo 已按用户追加授权发布：[https://bhhs-gulf-properties-demo.vercel.app](https://bhhs-gulf-properties-demo.vercel.app)，访客无需登录。** 部署实现提交 `9f6eded`，当前 `main` 已推送；57 项检查、公开构建、5 项线上 Chrome 主链路和匿名首页/接口访问通过。下面保留两轮开发记录，公开部署增量详见文末。
+
 **第二轮开发技术验证通过：53 项自动化检查、6 项新增 Chrome 实操、9 项原有 Chrome 回归和生产构建均通过。** 当前分支 `main`，本轮应用提交为 `6ba112e`、`6f6fe9b`、`3e364e0`，新增技术验收提交 `47e1d6f`；本交接文档随后的提交号以 `git log -1 --oneline` 为准。控制塔负责范围、依赖和最终业务验收；产品 A/B 的真实数据和人工基准尚未交付。
 
 ## 启动与地址
@@ -21,7 +23,7 @@ npm run dev
 - API：`http://127.0.0.1:8001`
 - 检查：`GET /api/health`；数据：`GET /api/dataset`
 - 独立启动：`npm run dev:web`、`npm run dev:api`；组合启动用 `npm run dev`，`Ctrl+C` 停止。
-- 两个服务只绑定 `127.0.0.1`；没有部署到公网。
+- 两个本地服务只绑定 `127.0.0.1`；在线版本通过独立 Vercel 项目提供虚构演示快照。
 
 ## 代码仓库
 
@@ -203,4 +205,52 @@ v1 需求没有独立 `area_basis`，面积比较需在 `hard_constraints` 写�
 
 第二轮开工为 `main@ba64798`，工作区干净。当前改动归属开发及其子代理，已按上述提交留痕；没有修改 `.gitignore`、模板、控制塔数据契约或迭代 brief。最终 README/交接文档单独提交，最新 SHA 与提交后工作区状态以开发窗口最终实查交接为准。没有暂存未知修改。
 
-本轮未包含物业管理、完整 DataOS/本体平台、CRM 写回、自动外发、生产级持续采集、销售简报独立导出页和公网发布。没有重新开启已确定主链路的产品方向讨论。
+前两轮开发未包含物业管理、完整 DataOS/本体平台、CRM 写回、自动外发、生产级持续采集、销售简报独立导出页和公网发布。用户随后追加了公开部署授权，实施记录如下；其余范围未变。
+
+## 公开部署增量交接（2026-09-03 UTC）
+
+用户明确要求“vercel 新链接，要免登录”。因此新建独立项目并公开发布演示样例；没有修改其他 Vercel 项目、共享数据契约或产品规则。
+
+- 稳定访问地址：[bhhs-gulf-properties-demo.vercel.app](https://bhhs-gulf-properties-demo.vercel.app)。
+- Vercel 项目：`kwillsaveworld/bhhs-gulf-properties-demo`；项目 ID `prj_NV8Y2HxWVz6yoLYERbe6uQY0XeuA`。
+- 部署实现：`9f6eded`，`feat(deploy): 配置 Vercel 公开演示构建与只读数据快照`。代码和验证变更均已推送 `origin/main`。
+- 首次验证部署：`dpl_9jxFVdSRcSXBiLHhiSB7bnXecQkn`，对应 Git SHA `9f6eded1be249f9e0f039a263ae3d1272de6e061`，target `production`、状态 `Ready`。
+- GitHub 集成已连接；后续 `git push origin main` 会触发该独立项目构建。部署记录文档单独提交，其最终 SHA 以 `git log -1 --oneline` 为准，避免改写已验证实现提交。
+- 实查保护配置为 `ssoProtection=null`、`passwordProtection=null`、`trustedIps=null`，匿名浏览器没有登录、预置登录态或绕过参数。
+
+### 构建与数据边界
+
+`npm run build:public` 执行网页构建后，调用 `tools/export-public-demo.mjs` 复用现有 `loadDataset` 校验，强制只读取 `data/demo/dataset.json`。要求 `meta.mode=demo`、所有表全部 `data_kind=demo`、隔离数为 0，否则导出失败。测试覆盖本机 `BHHS_DATA_DIR` 指向私有位置时仍不读取该位置。没有改动导入门槛、同屋证据资格或共享匹配逻辑。
+
+输出目录为 `apps/web/dist`；Vercel 将原 `/api/dataset` 和 `/api/health` 路径映射到构建产出的 JSON。公开版本没有运行本地 Node API，不支持在线上传或持久化客户资料。页面刷新读取已发布快照，不读取本地产品文件；`Dataset prepared` / `loaded_at` 为快照生成时间，`delivery=static_demo_snapshot` 明确健康路径也是静态发布信息。
+
+使用 `.vercelignore` 白名单仅上传必要源码、schema 和演示数据。部署前实际执行 `vercel deploy --dry --json`，清单为 28 个文件、408,444 bytes；不包含环境文件、真实输入、内部文档、outputs 或 QA 产物。Git 忽略 `.vercel/` 与 `.env.local`；CLI 创建的本机绑定和环境文件不提交、不输出内容。
+
+### 实际验证
+
+| 实际执行 | 结果 | 证据边界 |
+|---|---|---|
+| `npm test` | **57/57 通过，退出 0** | 原 53 项及公开数据导出的 4 项检查 |
+| `npm run build:public` | **通过，退出 0** | TypeScript、Vite 和固定演示快照导出通过；主 JS 1,028.89 kB，gzip 323.49 kB，保留大包提示 |
+| Vercel inspect + GitHub deployment API | **Production / Ready** | 首次部署 source SHA 与 `9f6eded` 一致；不是仅依据本地构建成功 |
+| 全新匿名 Chrome 线上实操 | **5/5 通过，25.6 秒** | 普通筛选/助手一致、客户去重和独立需求回跳、多笔历史/日期范围/来源、0/1 笔历史、模拟 503 后恢复真实线上数据 |
+| 独立匿名访问复核，1366×768 | **通过，退出 0** | 初始 cookies 为 0；首页 HTTP 200、两个 API JSON 均 HTTP 200，未重定向；记录全部为 demo；刷新后 9 个候选、`pageErrors=[]` |
+| 静态资源与页面刷新 | **通过** | JS/CSS 首次均 200，刷新后 304 缓存；刷新后界面仍可用。截图仅作为上述操作的补充 |
+
+线上实操复现命令：
+
+```powershell
+$env:BHHS_E2E_BASE_URL = 'https://bhhs-gulf-properties-demo.vercel.app'
+npx.cmd playwright test --grep 'ordinary filters and reviewed assistant|a property counts|multi-sale history|a single recorded sale|loading and failed refresh' --reporter=list
+Remove-Item Env:BHHS_E2E_BASE_URL
+```
+
+补充诊断如实保留：首次 Node `APIRequestContext` 直连接口超时，而匿名 Chrome 页面及页面内无凭证 fetch 正常；后续接口验证走同一浏览器网络路径。补充脚本曾错误要求刷新静态资源也为 200，诊断实际为正常的 304 缓存响应，修正断言后全程通过。临时脚本、JSON 结果和截图均在忽略目录 `.work/`，不计入应用改动或正式发布文件。
+
+当前仍为虚构样例与规则助手，产品 A/B 数据、人工基准及业务规则缺口见上方负责人清单。本次没有执行真实数据业务验收、真实模型调用、公网性能/地区可达性、多浏览器或移动端完整测试，不把上线等同于这些事项通过。
+
+### Git 和剩余事项
+
+本次实现修改归属开发主代理及其受控子任务；所有暂存、提交与推送串行完成。`9f6eded` 包含部署配置、导出守卫及其测试、通用界面文案和线上测试地址参数；本节及 README 为随后独立文档提交。没有暂存他人或未知修改；交接时再核对工作区与远端 SHA。
+
+下一步由产品 A/B 交付真实资料和人工匹配参考，控制塔负责业务验收。公开数据源变更需先审查可公开内容，不会因本机替换了输入文件自动发布真实资料。无需为本轮演示新增数据库、模型服务或持续采集。

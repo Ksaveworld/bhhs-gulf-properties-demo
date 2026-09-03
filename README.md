@@ -1,8 +1,10 @@
 # BHHS Gulf Properties 销售辅助 Demo
 
-面向销售的本地房源库：整理客户需求 → 手动筛选或规则助手匹配 → 房源详情 → 当前挂牌价、同屋历史与可比成交 → 比较潜在客户 → 辅助销售沟通。客户界面默认英文，开发说明使用中文。
+面向销售的房源库 Demo：整理客户需求 → 手动筛选或规则助手匹配 → 房源详情 → 当前挂牌价、同屋历史与可比成交 → 比较潜在客户 → 辅助销售沟通。客户界面默认英文，开发说明使用中文。
 
 公开代码仓库：[Ksaveworld/bhhs-gulf-properties-demo](https://github.com/Ksaveworld/bhhs-gulf-properties-demo)。主分支为 `main`，本地运行方式见下文。
+
+**在线 Demo：[bhhs-gulf-properties-demo.vercel.app](https://bhhs-gulf-properties-demo.vercel.app)**。2026-09-03 UTC 已用全新匿名 Chrome 实际验证，无需访客登录。
 
 **当前默认数据全部虚构。** 项目包含 10 个房源、11 条挂牌快照、8 条交易、9 条关联、6 位客户的 8 份独立需求和 8 条匹配参考。价格、客户陈述、房屋身份和来源都是交互样例，不代表 BHHS 事实或产品已确认规则。
 
@@ -31,9 +33,23 @@ npm run dev
 2. 点击 **Client requirements**，由销售填写需求或粘贴沟通内容，运行规则提取，检查并修改结构化条件后应用；也可以直接选择已提供的客户需求。
 3. 点击候选房源打开详情，查看原币种挂牌价、来源、更新时间及 **Price evidence**。同屋成交图与时间线按唯一交易 ID 计数；修改 **From / To** 筛选日期，点击成交点或时间线按钮定位原始记录和来源。可比成交保持独立。
 4. 在 **Potential clients** 查看按客户去重的满足条件、待补信息和折叠的硬冲突名单。**Sort clients** 可按条件、预算覆盖或购买日期排序，页面解释排序依据。展开 **Review requirements** 查看每份原始需求，点击相应 **View properties** 返回其候选；**Clients & needs** 也保留反向入口。
-5. 在 **Data & sources** 查看数据性质及隔离提示。**Refresh data** 重新读取本地输入文件。
+5. 在 **Data & sources** 查看数据性质及隔离提示。**Refresh data** 重新读取当前数据源：本地服务读取输入文件，在线 Demo 读取已发布的演示快照。
 
 手动筛选与助手最终调用同一个 `filterListings`，使用同一份房源数据。规则助手没有接入大模型；提取结果是销售审核草稿。页面输入仅保存在当前页面会话中，**重新加载整个页面后清除**；点击 Refresh data 只是重新读取数据源。
+
+## Vercel 在线演示
+
+独立项目为 `kwillsaveworld/bhhs-gulf-properties-demo`，已连接上述 GitHub 仓库。推送到 `main` 会触发该项目的 Production 构建；访客 SSO、密码和 IP 保护均未启用。本地构建使用：
+
+```powershell
+npm run build:public
+```
+
+此命令先检查类型并构建网页，再从固定的 `data/demo/dataset.json` 导出只读 JSON。导出会忽略 `BHHS_DATA_DIR`，要求模式和所有记录均为 `demo` 且无隔离行；不满足时构建失败。`vercel.json` 将 `/api/dataset` 和 `/api/health` 映射到这份快照，没有部署本地 Node API。
+
+在线刷新不会读取本机产品文件。`Dataset prepared` / `loaded_at` 是快照生成时间，`/api/health` 的 `delivery=static_demo_snapshot` 表示静态发布信息，不是实时服务探活。真实数据接入仍按下节本地流程进行，公开数据源变更需另行审查。
+
+`.vercelignore` 只允许上传构建所需源码、schema 和虚构样例；`.env*`、`.vercel/`、私有输入和临时 QA 文件不发布。Vercel 本机绑定及 CLI 生成的 `.env.local` 不进入 Git。
 
 ## 产品数据接入
 
@@ -67,6 +83,7 @@ npm run dev
 | `apps/api/` | Node 原生只读 HTTP API、CSV/JSON 校验和隔离 |
 | `data/demo/` | 完全虚构且可重建的样例，和产品数据分开保存 |
 | `tools/dev.mjs` | 同时启动本地网页与 API |
+| `tools/export-public-demo.mjs`、`vercel.json` | 固定虚构数据快照与 Vercel 公开构建 |
 
 ## 限制与验证状态
 
@@ -76,11 +93,13 @@ npm run dev
 - 未接入外汇来源，保留原币种；没有已校准估值或成交价预测。挂牌价、历史挂牌快照与成交价分别处理，下架不等于成交。
 - v1 客户需求没有独立面积口径字段。需要面积条件时，在 `hard_constraints` 明确 `area basis: built_up`（或 `internal` / `gross` / `land`）；口径或单位不明时保持 Unknown。
 - 卧室/面积上限及未支持的否定条件不反向填成下限，保留原文、硬条件及提示，交销售确认。规则无法穷尽自然语言，应用前需要审核。
-- 当前不含 XLSX 直读、客户需求持久化、真实模型调用、CRM 写回、自动外发、持续采集、物业管理及公网发布。
+- 当前不含 XLSX 直读、客户需求持久化、真实模型调用、CRM 写回、自动外发、持续采集及物业管理。
 
 第二轮实际验证：`npm test` **53/53 通过**、`npm run build` **通过**；新增 Chrome 用例 **6/6 通过**，原有主链路回归 **9/9 通过**（分别执行两份测试文件，共 15 项）。覆盖客户去重及独立需求、预算/日期排序、成交 0/1/多笔与来源回跳、日期错误恢复、币种/日期口径分组、键盘聚合点选择，以及原筛选、助手一致性和错误状态。桌面 1440×1000、1366×768 有实际操作验证。最终业务验收仍由控制塔结合产品 A/B 输入完成。
 
 已知构建提示：主 JS 包约 1,029 kB，gzip 323 kB；本轮未做代码拆分。本地交互验证通过，不把此结果当作公网性能验收。
+
+公开部署增量验证：`npm test` **57/57 通过**（新增 4 项公开导出边界检查），`npm run build:public` **通过**；线上 Chrome 主链路 **5/5 通过，25.6 秒**。独立匿名访问验证首页、两个 JSON 接口均为 HTTP 200，无登录重定向；1366×768 下刷新后仍为 9 个候选、无页面脚本错误。首次静态资源为 200，刷新命中 304 缓存。未执行公网性能、多浏览器及移动端完整验收。
 
 ```powershell
 npm test
@@ -89,3 +108,11 @@ npm run test:browser
 ```
 
 浏览器测试当前使用本机 Chrome（Playwright `channel: 'chrome'`），需先运行本地服务；默认桌面视口为 1440 × 1000。具体最终结果记录在 [开发交接](docs/dev-handoff.md)。
+
+复现已执行的线上 5 项验证（无需先启动本地服务）：
+
+```powershell
+$env:BHHS_E2E_BASE_URL = 'https://bhhs-gulf-properties-demo.vercel.app'
+npx.cmd playwright test --grep 'ordinary filters and reviewed assistant|a property counts|multi-sale history|a single recorded sale|loading and failed refresh' --reporter=list
+Remove-Item Env:BHHS_E2E_BASE_URL
+```

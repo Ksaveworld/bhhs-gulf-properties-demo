@@ -1,0 +1,7 @@
+* text=auto
+*.md text eol=lf
+*.mjs text eol=lf
+*.json text eol=lf
+*.csv text eol=crlf
+*.xlsx binary
+*.zip binary

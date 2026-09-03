@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Button, Drawer, Input, Select, Tag } from 'antd';
 import { ArrowRightOutlined, EditOutlined } from '@ant-design/icons';
 import type { ClientRequirement } from '../../../../shared/types';
-import { EMPTY_FILTERS, parseHardConstraints, requirementsToFilters, type Filters } from '../../../../shared/matching';
+import { EMPTY_FILTERS, requirementTextReview, requirementsToFilters, type Filters } from '../../../../shared/matching';
 import { ruleAssistant } from '../../../../shared/assistant';
 import { requirementAreaWarnings, resolveRequirementArea } from '../../../../shared/requirement-area';
 import { applyRequirementFields } from '../../../../shared/requirement-edit';
@@ -39,6 +39,7 @@ export function RequirementEditor({ open, areas, initialRequirement, onClose, on
   const invalid = filters.budget_min !== null && filters.budget_max !== null && filters.budget_min > filters.budget_max;
   const reviewed = draft ? applyRequirementFields(draft, filters) : null;
   const areaWarnings = reviewed ? requirementAreaWarnings(reviewed) : [];
+  const textReview = reviewed ? requirementTextReview(reviewed) : { equivalents: [], warnings: [] };
   function apply() {
     if (!reviewed || invalid) return;
     const req: ClientRequirement = { ...reviewed, requirement_id: `SESSION-R-${Date.now()}`, client_id: initialRequirement?.client_id ?? `SESSION-C-${Date.now()}`,
@@ -58,6 +59,8 @@ export function RequirementEditor({ open, areas, initialRequirement, onClose, on
       <p className="muted">Structured conditions filter the library. Original notes and hard restrictions are retained; unresolved details require confirmation before recommending.</p>
       <FilterEditor value={filters} onChange={setFilters} areas={areas} requirementsMode />
       {areaWarnings.length > 0 && <Alert data-testid="requirement-area-warning" type="warning" showIcon message="Area basis needs confirmation (面积口径待确认)" description={<>{areaWarnings.join(' ')} Confirm the meaning against the original request, then reconcile the field and any legacy area-basis statement. The property measurement is not used to fill this field.</>} />}
+      {textReview.warnings.length > 0 && <Alert data-testid="requirement-text-warning" type="warning" showIcon message="Original wording and hard conditions need review" description={<ul className="compact-list">{textReview.warnings.map((message, index) => <li key={index}>{message}</li>)}</ul>} />}
+      {textReview.equivalents.length > 0 && <details data-testid="requirement-text-covered"><summary>Text already represented by structured fields</summary><ul className="compact-list">{textReview.equivalents.map((item, index) => <li key={index}>{item.text} → {item.fields.join(', ')}</li>)}</ul><p>Numeric equivalence does not confirm an area basis. Original restrictions remain below.</p></details>}
       {invalid && <Alert type="error" message="Minimum price must not exceed maximum price." />}
       <div className="requirement-extra">
         <label className="field"><span>Client alias</span><Input aria-label="Client alias" value={draft.client_alias} onChange={e => update('client_alias', e.target.value)} /></label>

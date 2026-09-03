@@ -1,5 +1,6 @@
 import type { AreaUnit, ClientRequirement, ListingSnapshot } from './types';
 import { legacyAreaBases, resolveRequirementArea } from './requirement-area';
+import { reviewConstraintSegment, reviewRawRequest } from './constraint-review';
 
 export interface Filters {
   areas: string[];
@@ -93,13 +94,25 @@ const AMENITY_ALIASES: Record<string, string[]> = {
   sea_view: ['sea_view', 'sea view', '海景'], study: ['study', '书房'],
 };
 
-export function parseHardConstraints(text: string | null): { amenities: string[]; area_basis: string; unknowns: string[] } {
+export function parseHardConstraints(text: string | null, requirement?: ClientRequirement): {
+  amenities: string[]; area_basis: string; unknowns: string[];
+  equivalents: { text: string; fields: string[] }[]; required_market: string | null;
+} {
   let rest = text ?? '';
   const bases = legacyAreaBases(text);
   rest = rest.replace(/area\s*basis\s*:\s*(built_up|internal|gross|land|unknown)\b/gi, '');
   const amenities: string[] = [], unknowns: string[] = [];
-  for (const segment of rest.split(/[;；\n|]/).map((s) => s.trim()).filter(Boolean)) {
-    let unmatched = segment.replace(/^(?:amenities\s*:|must\s+(?:have|include)|requires?|required\s*:|必须(?:有|带|配备)?|需要)\s*/i, '');
+  const equivalents: { text: string; fields: string[] }[] = [];
+  let required_market: string | null = null;
+  for (const segment of rest.split(/[;；\n|。，]/).map((s) => s.trim()).filter(Boolean)) {
+    const review = requirement ? reviewConstraintSegment(segment, requirement) : null;
+    if (review?.kind === 'equivalent') {
+      equivalents.push({ text: segment, fields: review.fields });
+      if (review.fields.includes('market_preference')) required_market = requirement!.market_preference;
+      continue;
+    }
+    if (review?.reason) { unknowns.push(`${segment} — ${review.reason}`); continue; }
+    let unmatched = segment.replace(/^(?:amenities\s*:|must\s+(?:have|include)|requires?|required\s*:|必须(?:有|带|配备)?|需要(?:有|带|配备)?)\s*/i, '');
     const found: string[] = [];
     for (const [key, aliases] of Object.entries(AMENITY_ALIASES)) {
       for (const alias of [...aliases].sort((a, b) => b.length - a.length)) {
@@ -107,15 +120,22 @@ export function parseHardConstraints(text: string | null): { amenities: string[]
         if (pattern.test(unmatched)) { found.push(key); unmatched = unmatched.replace(pattern, ' '); }
       }
     }
-    unmatched = unmatched.replace(/\b(?:and|with|a|an|the)\b|[,&、。.!！\s]/gi, '');
+    unmatched = unmatched.replace(/\b(?:and|with|a|an|the)\b|[,&和及与、。.!！\s]/gi, '');
     if (!unmatched && found.length) amenities.push(...found);
     else unknowns.push(segment);
   }
-  return { amenities: [...new Set(amenities)], area_basis: bases.length === 1 ? bases[0] : '', unknowns };
+  return { amenities: [...new Set(amenities)], area_basis: bases.length === 1 ? bases[0] : '', unknowns, equivalents, required_market };
+}
+
+export function requirementTextReview(requirement: ClientRequirement) {
+  const hard = parseHardConstraints(requirement.hard_constraints, requirement);
+  return { equivalents: hard.equivalents, warnings: [
+    ...hard.unknowns.map(text => `Hard condition needs confirmation: ${text}`), ...reviewRawRequest(requirement),
+  ] };
 }
 
 export function requirementsToFilters(requirement: ClientRequirement): Filters {
-  const hard = parseHardConstraints(requirement.hard_constraints);
+  const hard = parseHardConstraints(requirement.hard_constraints, requirement);
   const area = resolveRequirementArea(requirement);
   return {
     ...EMPTY_FILTERS, areas: [...(requirement.preferred_areas ?? [])],
@@ -146,7 +166,7 @@ export function evaluateMatch(listing: ListingSnapshot, requirement: ClientRequi
   const matched: string[] = [], conflicts: string[] = [], unknowns: string[] = [];
   let excluded = false;
   const exclude = (message: string) => { conflicts.push(message); excluded = true; };
-  const hard = parseHardConstraints(requirement.hard_constraints);
+  const hard = parseHardConstraints(requirement.hard_constraints, requirement);
   const area = resolveRequirementArea(requirement);
   const selectedAreas = requirement.preferred_areas ?? [];
   if (selectedAreas.length) {
@@ -194,6 +214,7 @@ export function evaluateMatch(listing: ListingSnapshot, requirement: ClientRequi
   if (requirement.market_preference === 'ready' || requirement.market_preference === 'off_plan') {
     if (listing.market_segment === 'unknown') unknowns.push('Ready / off-plan status is unknown.');
     else if (listing.market_segment === requirement.market_preference) matched.push(`Market status: ${listing.market_segment}`);
+    else if (hard.required_market) exclude(`Market status ${listing.market_segment} conflicts with the explicit required ${hard.required_market} condition.`);
     else conflicts.push(`Market status ${listing.market_segment} differs from preference ${requirement.market_preference}.`);
   }
   if (listing.listing_status === 'unknown') unknowns.push('Listing availability has not been confirmed.');
@@ -203,6 +224,7 @@ export function evaluateMatch(listing: ListingSnapshot, requirement: ClientRequi
     else unknowns.push(`Required amenity ${amenity} is not disclosed; confirm before recommending.`);
   }
   for (const constraint of hard.unknowns) unknowns.push(`Manual confirmation required for hard condition: ${constraint}`);
+  unknowns.push(...reviewRawRequest(requirement));
   if (requirement.move_in_by) {
     if (!validDate(requirement.move_in_by)) unknowns.push('Move-in deadline is not a valid complete date.');
     else if (!validDate(listing.availability_date)) unknowns.push(`Delivery by ${requirement.move_in_by} is not confirmed.`);

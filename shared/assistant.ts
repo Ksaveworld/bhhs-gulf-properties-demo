@@ -1,4 +1,5 @@
 import { parseHardConstraints, validDate } from './matching';
+import { reviewRawRequest } from './constraint-review';
 import type { AreaBasis, ClientRequirement, Currency } from './types';
 
 export interface AssistantResult {
@@ -83,7 +84,7 @@ export const ruleAssistant: AssistantAdapter = {
     if (requirement.budget_max !== null || requirement.budget_min !== null) {
       const budgetConstraintText = budgetText.split(/[,，](?!\d{3}(?:\D|$))|[;；\n。]/)[0];
       if (/\b(?:flexible|negotiable|can stretch)\b|可协商|可商量|预算可调|预算浮动/i.test(budgetConstraintText)) set('budget_constraint', 'flexible');
-      else if (/\b(?:hard (?:budget|cap|limit)|strict(?:ly)?|cannot exceed|must not exceed|no more than|max(?:imum)? budget|budget cap)\b|不超过|不可超|硬性上限|预算上限不可/i.test(budgetConstraintText)) set('budget_constraint', 'hard');
+      else if (/\b(?:hard (?:budget|cap|limit)|strict(?:ly)?|cannot exceed|must not exceed|no more than|max(?:imum)? budget|budget cap)\b|不超过|不可超|硬性上限|预算上限/i.test(budgetConstraintText)) set('budget_constraint', 'hard');
       if (!requirement.currency) warnings.push('Budget currency is missing or ambiguous. No default currency was assumed.');
     } else warnings.push('No budget was recognized. Enter the budget manually if it was provided.');
 
@@ -144,7 +145,11 @@ export const ruleAssistant: AssistantAdapter = {
     if (ready && offPlan) {
       if (/\b(?:either|both|or)\b|均可|都可|都行/.test(text.toLowerCase())) set('market_preference', 'either');
       else warnings.push('Ready and off-plan were both mentioned; select the intended preference.');
-    } else if (ready || offPlan) set('market_preference', ready ? 'ready' : 'off_plan');
+    } else if (ready || offPlan) {
+      const acceptanceOnly = /(?:可接受|也接受|也可以考虑)(?:现房|期房)/.test(text) && !/(?:必须|只考虑|仅考虑|偏好)(?:是|为)?(?:现房|期房)/.test(text);
+      if (acceptanceOnly) warnings.push('Acceptance of one market segment does not establish an exclusive preference. Confirm ready / off-plan selection.');
+      else set('market_preference', ready ? 'ready' : 'off_plan');
+    }
 
     const dates = [...text.matchAll(/\b\d{4}-\d{2}-\d{2}\b|\d{4}年\d{1,2}月\d{1,2}日/g)];
     for (const found of dates) {
@@ -159,20 +164,29 @@ export const ruleAssistant: AssistantAdapter = {
 
     // A period followed by whitespace/end terminates a sentence; decimal points do not.
     const sentences = text.split(/\.(?=\s|$)|[;；\n。]/);
-    const hardParts = [...excludedAreaRequests, ...excludedPropertyTypes, ...sentences.flatMap((sentence) => [...sentence.matchAll(/(?:\bmust\b|\brequire(?:d)?\b|必须|硬性条件)\s*[^,，]+/gi)].map((m) => m[0].trim()))];
+    const hardParts = [...excludedAreaRequests, ...excludedPropertyTypes, ...sentences.flatMap((sentence) => [...sentence.matchAll(/(?:\bmust\b|\brequire(?:d)?\b|必须|需要|只考虑|仅考虑|硬性条件)\s*[^,，]+/gi)].map((m) => {
+      const prefix = sentence.slice(0, m.index);
+      return /(?:不|无|并非)$/.test(prefix) ? sentence.trim() : m[0].trim();
+    }))];
     if (bedroomUpperBound) hardParts.push(bedroomUpperBound[0]);
     if (studio.negative) hardParts.push('Excluded layout requested: studio');
     if (areaSize && areaUpperBound) hardParts.push(`${areaUpperBound[0].trim()} ${areaSize[0]}`);
     if (ownUseMentions.negative || investmentMentions.negative) warnings.push('Negated purchase-purpose wording was not treated as a positive purpose. Check the original request.');
     if (marketNegation) hardParts.push('Negated ready / off-plan condition: check the original request.');
     const softParts = sentences.flatMap((sentence) => [...sentence.matchAll(/(?:\bprefer(?:red|ably)?\b|\bnice to have\b|偏好|最好)\s*[^,，]+/gi)].map((m) => m[0].trim()));
-    const basis = text.match(/\b(?:area\s*basis\s*:\s*)?(built_up|internal|gross|land)\s*(?:area|basis)?\b/i);
-    if (basis && requirement.area_min !== null) set('area_basis', basis[1].toLowerCase() as AreaBasis);
-    if (/建筑面积/.test(text) && requirement.area_min !== null && !basis) set('area_basis', 'built_up');
+    const bases = [...text.matchAll(/\b(?:area\s*basis\s*:\s*)?(built_up|internal|gross|land)\s*(?:area|basis)?\b/gi)]
+      .filter(match => match[1].toLowerCase() !== 'land' || /basis|area/i.test(match[0]) || /(?:sqft|sqm)\s*$/i.test(text.slice(0, match.index)));
+    const basisValues = [...new Set(bases.map(match => match[1].toLowerCase()))];
+    const uncertainBasis = bases.some(match => /(?:\bnot|\bno|不是|非|不按)\s*$/i.test(text.slice(Math.max(0, match.index! - 20), match.index)));
+    if (requirement.area_min !== null) {
+      if (basisValues.length === 1 && !uncertainBasis) set('area_basis', basisValues[0] as AreaBasis);
+      else if (basisValues.length || /建筑面积|套内面积|土地面积/.test(text)) warnings.push('Area wording is ambiguous, negated or mentions multiple bases. Confirm the area_basis field; no translation or property-type inference was applied.');
+    }
     if (hardParts.length) set('hard_constraints', [...new Set(hardParts)].join('; '));
     if (softParts.length) set('soft_preferences', softParts.join('; '));
-    const parsedHard = parseHardConstraints(requirement.hard_constraints);
+    const parsedHard = parseHardConstraints(requirement.hard_constraints, requirement);
     if (parsedHard.unknowns.length) warnings.push(`Hard conditions need manual confirmation: ${parsedHard.unknowns.join('; ')}`);
+    warnings.push(...reviewRawRequest(requirement));
     if (requirement.area_min !== null && !requirement.area_basis) warnings.push('Area basis needs confirmation (面积口径待确认). Confirm internal / gross / built_up / land before applying an area filter.');
     const intent = text.split(/[;；\n。]/).find((part) => /\b(?:schedule|arrange|book)\b[^.]*\bviewing\b|约看|安排看房|预约看房/i.test(part));
     if (intent) set('intent_evidence', intent.trim());

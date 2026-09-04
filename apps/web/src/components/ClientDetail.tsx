@@ -96,7 +96,12 @@ function ClientDetailWorkspace(props: ClientDetailProps) {
     try { key = viewingStorageKey(access); } catch { return; }
     const onStorage = (event: StorageEvent) => { if (event.key === key || event.key === null) { setSaveStatus(''); reloadRecords(); } };
     window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
+    // Native storage events exclude this document; hidden parent views still need fresh revisions.
+    window.addEventListener('bhhs:viewings-changed', reloadRecords);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener('bhhs:viewings-changed', reloadRecords);
+    };
   }, [access]);
 
   function persist(additions: ViewingRecord[]) {

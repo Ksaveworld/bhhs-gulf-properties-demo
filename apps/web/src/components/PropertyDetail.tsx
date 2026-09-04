@@ -66,11 +66,24 @@ function SalesConfirmation({ listing, salesId, scope, onSignIn }: { listing: Lis
     try { setConfirmation(loadListingConfirmation(localStorage, access)); setLoadedKey(key); }
     catch (failure) { setConfirmation(null); setLoadedKey(null); setError(failure instanceof Error ? failure.message : 'The property confirmation could not be read.'); }
   }
-  useEffect(() => { reload(); const listener = (event: StorageEvent) => { if (event.key === key || event.key === null) reload(); }; window.addEventListener('storage', listener); return () => window.removeEventListener('storage', listener); }, [key]);
+  useEffect(() => {
+    reload();
+    const listener = (event: StorageEvent) => { if (event.key === key || event.key === null) reload(); };
+    window.addEventListener('storage', listener);
+    window.addEventListener('bhhs:listing-confirmations-changed', reload);
+    return () => {
+      window.removeEventListener('storage', listener);
+      window.removeEventListener('bhhs:listing-confirmations-changed', reload);
+    };
+  }, [key]);
   const current = loadedKey === key && key ? confirmation : null;
   function confirm(checked: boolean) {
     if (!salesId) { onSignIn?.(); return; }
-    try { const saved = saveListingConfirmation(localStorage, access, checked); setConfirmation(saved); setLoadedKey(key); setError(null); }
+    try {
+      const saved = saveListingConfirmation(localStorage, access, checked);
+      setConfirmation(saved); setLoadedKey(key); setError(null);
+      window.dispatchEvent(new Event('bhhs:listing-confirmations-changed'));
+    }
     catch (failure) { setError(failure instanceof Error ? failure.message : 'Saving could not be confirmed.'); setLoadedKey(null); }
   }
   return <div className="pd-sales-confirmation">

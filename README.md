@@ -2,7 +2,7 @@
 
 销售整理需求 → 房源库筛选或规则助手匹配 → 房源详情 → 当前挂牌价、同屋历史和可比成交 → 潜客比较与销售沟通。
 
-当前为 **V2 本地改版**：Home 三任务、精简房源库、客户详情双页签、需求修订历史和 PDF / Word 导出。独立 Reports 页面已移除。用户“仔细对照，并启动”授权下实施，逐项清单见 [V2 对照](docs/iteration-04-v2-checklist.md)。本轮仅本地提交，没有 push 或部署；之前的 [在线版本](https://bhhs-gulf-properties-demo.vercel.app) 不代表当前本地改版。
+当前 **V2 已上线**：[打开在线 Demo](https://bhhs-gulf-properties-demo.vercel.app)。包含 Home 三任务、精简房源库、客户详情双页签、需求修订历史和 PDF / Word 导出；独立 Reports 页面已移除。用户追加“上线，记得 commit”后，代码 `20d006a` 已正常推送并发布，匿名访问无需 Vercel 登录；应用内 Sales ID 仍为演示分区。逐项清单见 [V2 对照](docs/iteration-04-v2-checklist.md)，发布证据见 [开发交接](docs/dev-handoff.md)。
 
 代码仓库：[Ksaveworld/bhhs-gulf-properties-demo](https://github.com/Ksaveworld/bhhs-gulf-properties-demo)，本地分支 `main`。开发说明中文，界面英文，支持中英文规则输入；没有新增完整中文界面。
 
@@ -88,7 +88,9 @@ npm run test:browser
 
 本轮最终结果：**188/188 领域测试、37/37 Chrome 实操通过，TypeScript 与公开构建通过**。浏览器全批耗时 2.5 分钟，涵盖实际下载、保存失败、刷新/重开、身份/批次隔离、双向匹配和旧数据兼容。
 
-`build:public` 是本地检查，不执行部署。它从固定主演示数据生成 44 条纯 demo 静态快照，忽略 `BHHS_DATA_DIR`；不把接收批次带入公开构建。历史 Vercel 绑定仍保留，推送 main 可能触发发布，故本轮没有推送。
+追加发布验证：重新执行 188/188 领域测试与公开构建；生产 Ready、GitHub Vercel success；全新匿名 Chrome 首页及两个 API 均 HTTP 200，44 条纯 demo。线上 Home 7 + Clients 5 + Exports 5 共 **17/17 通过，82.7 秒**，包含实际 PDF/DOCX 下载；0 跳过。独立匿名探针验证预算改变候选、同屋/可比价格、详情刷新及前端资源与本地构建一致。
+
+`build:public` 本身只构建，不执行部署。它从固定主演示数据生成 44 条纯 demo 静态快照，忽略 `BHHS_DATA_DIR`；不把接收批次带入公开构建。Vercel 关联 GitHub main，此次按追加授权推送并触发 Production 发布。本地与线上 origin 的浏览器副本不自动同步。
 
 ## 已知限制
 
@@ -96,4 +98,4 @@ npm run test:browser
 - 无综合评分、成交百分比、客户购买力推断、估值或外汇换算。排除项隐藏只改变展示，未放松匹配规则。
 - 演示 Sales ID 是本机分区，不是正式认证。没有服务端备份、跨设备同步、CRM 写回、自动外发或持续采集。
 - PDF 为分页图像，不能搜索或选择文字；DOCX 文字可编辑，含价格图。已验证下载与内容，未验证所有 Word/WPS 版本的排版兼容。
-- 主界面打包仍有大文件提示，导出模块按需加载；未做公网性能、多浏览器和移动端验收。本轮没有重新验证或更新线上版本。
+- 主界面打包仍有大文件提示，导出模块按需加载；已验证线上访问与指定功能流程，未做公网性能、多浏览器和移动端验收。

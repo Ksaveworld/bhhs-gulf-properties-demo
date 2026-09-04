@@ -2,13 +2,13 @@
 
 ## 当前状态
 
-当前为 V2 本地改版：Home 三任务、精简房源库与价格证据、客户详情两个页签、需求显式修订及上下文 PDF / Word。独立 Reports 页已移除，看房记录保留在客户详情。原文冲突、缺口径与待补信息继续提示；独立方案和源记录保留。
+当前 V2 已按追加授权上线：Home 三任务、精简房源库与价格证据、客户详情两个页签、需求显式修订及上下文 PDF / Word。独立 Reports 页已移除，看房记录保留在客户详情。原文冲突、缺口径与待补信息继续提示；独立方案和源记录保留。
 
-当前分支 `main`。本轮依据 `20260904_BHHS房产销售工具Demo改版需求清单_v2.md` 和用户“仔细对照，并启动”，从干净的 `d7668c4` 开始。附件会议日期与确认按资料陈述记录，不另作已核实会议事实。所有小步提交由主代理串行完成；本轮没有 push 或部署，未暂存未知修改。最终文档 SHA 以 `git log -1 --oneline` 和窗口交接为准。
+当前分支 `main`。本轮依据 `20260904_BHHS房产销售工具Demo改版需求清单_v2.md` 和用户“仔细对照，并启动”，从干净的 `d7668c4` 开始。附件会议日期与确认按资料陈述记录，不另作已核实会议事实。开发先本地完成；收到“上线，记得 commit”追加授权后正常推送 `20d006a` 并发布。小步提交串行，未暂存未知修改。最终文档 SHA 以 `git log -1 --oneline` 和窗口交接为准。
 
 本轮已启动默认主演示 **[http://127.0.0.1:5173](http://127.0.0.1:5173)**，API `127.0.0.1:8001`。49 条接收 demo 保持原样，28 条公开资料仍待核验；15 条人工参考均 draft，6 条推荐/备选仍未进入结构候选。**技术交互验证不等于这 15 条业务验收通过。** 使用方式见 [本机保存](local-requirements.md)、[报告记录](report-records.md)，新版输入准备见 [案例复验](case-revalidation.md)。
 
-此前按另一次上线授权发布的 [在线 Demo](https://bhhs-gulf-properties-demo.vercel.app) 为历史版本。本轮未更新或重新验收线上服务。后文的旧发布结果保留为历史记录，不能套用为 V2 线上状态。所有业务输入与确认统一收口给用户。
+[在线 Demo](https://bhhs-gulf-properties-demo.vercel.app) 已更新到 V2。生产部署 Ready，稳定域名指向代码 `20d006a`；匿名浏览器的首页、两个 API 及价格/筛选操作已验证。具体发布和最终回归记录见文末，早期各轮记录保留为历史结果。业务输入与确认统一收口给用户。
 
 ## V2 本轮小步提交与验证
 
@@ -78,7 +78,7 @@ npm run dev
 
 ## 代码仓库
 
-用户此前授权新建公开 Git 仓库并同步当时提交。仓库为 [Ksaveworld/bhhs-gulf-properties-demo](https://github.com/Ksaveworld/bhhs-gulf-properties-demo)，`origin` 使用 HTTPS，主分支 `main`。历史发布保留，本轮 V2 仅本地提交，未 push、强推、amend 或改写历史。
+用户此前授权新建公开 Git 仓库并同步当时提交。仓库为 [Ksaveworld/bhhs-gulf-properties-demo](https://github.com/Ksaveworld/bhhs-gulf-properties-demo)，`origin` 使用 HTTPS，主分支 `main`。V2 在追加上线授权后正常 push，保留历史，未强推、amend 或改写旧提交。
 
 首次推送前检查了 16 次提交、76 个唯一文件 blob 及 ZIP/XLSX 模板：凭证模式扫描无命中，历史未跟踪 `data/incoming/`、`data/private/`、`.env` 或临时 QA 目录，业务 Excel 数据区为空。此检查不是对未来提交的持续保证，真实资料仍按私有目录约定处理。
 
@@ -571,3 +571,33 @@ Remove-Item Env:BHHS_E2E_BASE_URL
 ```
 
 本机实际使用的代理配置、脚本和产物均在忽略目录 `.work/release-20260903/`：`history-audit.json`、`deployment-code.json`、`public-access-v3.json`、`public-acceptance-receipt.json`、`browser-v3-proxy.log`、`browser-proxy/`；首次网络失败保留于 `browser/`。公开构建和测试日志为 `.work/release-public-build.log` 与 `.work/release-unit.log`。临时配置只用于当前主机验收，不写入应用默认网络配置。
+
+## V2 追加公开发布（2026-09-04 UTC）
+
+用户在 V2 本地交付后明确追加“上线，记得 commit”。开工为干净的 `main@20d006a`，远端 `d7668c4`；本地领先 17 笔、远端独有 0 笔。保留此前各功能和修复历史，正常 `git push origin main`，没有强推或改写旧提交。
+
+- 稳定入口：[https://bhhs-gulf-properties-demo.vercel.app](https://bhhs-gulf-properties-demo.vercel.app)。
+- 代码 SHA：`20d006a747eabaf29df5c9df10e6c4630b994e88`；生产部署 `dpl_4B45Hh2awWUFjpGAYVFtZRNSrCqt`，构建约 5 分钟，2026-09-04 06:38:53 UTC 完成。平台 Ready，GitHub Vercel 检查 success，稳定别名已指向 V2。
+- SSO、密码和 trusted IP 保护均为 null。独立匿名 Chrome 不带 cookie、storageState 或绕过头，首页及两个 API 均 HTTP 200，无 Vercel 登录跳转；应用 Username / Sales ID 仍是可选择的演示身份。
+- 发布记录随后独立文档 commit 并推送，仅更新本 README、交接和 V2 对照，不改变已验收应用或样本。最终文档提交/部署以窗口交接及 Git 日志为准。
+
+| 验证 | 实际结果 |
+|---|---|
+| 发布增量范围 | 17 提交、84 变更路径、88 唯一新文件版本；无私有数据/环境文件入库，凭证模式无命中。v1.2 五张输入 CSV 仅表头。此为本次有界检查，不是全面安全审计 |
+| 发布前检查 | 重新执行 188/188 领域测试、TypeScript 与 build:public 通过；固定 44 条输出全 demo、0 隔离。主数据 SHA-256 与既有基线一致 |
+| 独立匿名实操 | 退出 0；首页三任务、无 Reports 导航；预算筛选 8→2→8；AED 2,450,000 原价、同屋图/3个展开节点与独立可比；详情刷新恢复；1366×768 无文档横溢、0 页面错误、0 非 GET API 请求 |
+| 线上功能回归 | Home 7 + Clients 5 + Exports 5，17/17 通过，82.7 秒，0 失败/跳过/flaky。实际录入/审核/创建/保存失败、四筛选、推荐与反向结果、修订/恢复、看房及反馈、真实 PDF/DOCX 下载和销售隔离 |
+| 前端资源 | JS index-CYFiZcYG.js / CSS index-CaEE2Xqj.css 与本地构建相同；首次200、刷新304 |
+
+线上功能测试使用本机已启用的 `127.0.0.1:7890` 系统代理，让 Playwright Node 请求与浏览器走同一路径；没有改应用默认网络配置、访问保护、测试断言或增加绕过头。独立匿名探针未额外配置代理，Chrome 使用主机现有网络设置。结果不代表所有地区直连、移动端或公网性能验证。
+
+当前只有固定主演示公开。49 条接收 demo、15 条人工 draft/逐条报告、28 条待核验公开资料均未进入 Git 或站点；业务待补、规则模式、完整中文界面及 PDF 图像页等限制不变。本机与线上浏览器 origin 不同，本机副本不会自动上传或迁移到线上。
+
+证据留在忽略目录 `.work/v2-release/`：`deployment-code.json`、`code/anonymous-receipt.json`、`browser-run.log`、`browser-results.json`、`browser/` 中的截图和实际 PDF/DOCX 下载。发布前日志 `.work/v2-release-unit.log`、`.work/v2-release-build.log`。复现本机公网回归：
+
+```powershell
+npx playwright test --config .work/v2-release/playwright.public.config.ts home-v2.spec.ts clients-v2.spec.ts exports-v2.spec.ts
+node .work/v2-release/verify-anonymous.mjs https://bhhs-gulf-properties-demo.vercel.app .work/v2-release/code
+```
+
+临时配置和探针用于本机验收，不属于应用依赖或公开产物。

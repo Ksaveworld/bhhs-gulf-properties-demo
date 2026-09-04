@@ -1,6 +1,7 @@
 import { useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { LinkedTransaction } from '../../../../shared/pricing';
 import { groupTransactionHistory, historyDatePosition, uniqueHistoryRecords } from '../../../../shared/transaction-history';
+import { propertyDisplayName } from '../../../../shared/property-presentation';
 import './TransactionHistory.css';
 
 interface TransactionHistoryProps {
@@ -13,6 +14,14 @@ const compactFormatter = new Intl.NumberFormat('en-US', { notation: 'compact', m
 const plot = { width: 720, height: 300, left: 88, right: 30, top: 34, bottom: 236 };
 const salePrice = ({ transaction }: LinkedTransaction) => transaction.currency + ' ' + amountFormatter.format(transaction.amount!);
 const saleDescription = (record: LinkedTransaction) => 'Transaction ' + record.transaction.transaction_id + ': ' + record.transaction.transaction_date + ', ' + salePrice(record) + ', source ' + record.transaction.source_name;
+const areaBasisNames: Record<string, string> = { internal: 'Internal area', gross: 'Gross area', built_up: 'Built-up area', land: 'Land area' };
+function transactionSummary({ transaction }: LinkedTransaction): string {
+  const property = transaction.building_name ? propertyDisplayName({ ...transaction, title: '' }) : transaction.area_name;
+  const bedrooms = transaction.bedrooms === null ? null : transaction.bedrooms === 0 ? 'Studio' : transaction.bedrooms + (transaction.bedrooms === 1 ? ' bedroom' : ' bedrooms');
+  const size = transaction.area_value !== null && transaction.area_unit ? amountFormatter.format(transaction.area_value) + (transaction.area_unit === 'sqm' ? ' m²' : ' sq ft') : null;
+  const basis = size ? areaBasisNames[transaction.area_basis || ''] || 'Area basis unknown' : null;
+  return [property, bedrooms, size, basis].filter(Boolean).join(' · ') || 'Property details not supplied';
+}
 
 export function TransactionHistory({ records, onSelectRecord, renderRecord }: TransactionHistoryProps) {
   const id = useId();
@@ -77,7 +86,7 @@ export function TransactionHistory({ records, onSelectRecord, renderRecord }: Tr
       <ol className="th-timeline" aria-label="Recorded transaction timeline">{visible.map(record => {
         const transactionId = record.transaction.transaction_id;
         return <li key={transactionId} className="th-timeline-node"><details data-transaction-id={transactionId} open={expandedIds.includes(transactionId)} onToggle={event => { const open = event.currentTarget.open; setExpandedIds(previous => open ? previous.includes(transactionId) ? previous : [...previous, transactionId] : previous.filter(value => value !== transactionId)); }}>
-          <summary aria-label={'Sale ' + transactionId}><time dateTime={record.transaction.transaction_date!}>{record.transaction.transaction_date}</time><strong>{salePrice(record)}</strong><span>Sale · {record.transaction.date_basis === 'contract' ? 'Contract date' : 'Registration date'}</span></summary>
+          <summary aria-label={'Sale ' + transactionId}><time dateTime={record.transaction.transaction_date!}>{record.transaction.transaction_date}</time><strong>{salePrice(record)}</strong><span>Sale · {record.transaction.date_basis === 'contract' ? 'Contract date' : 'Registration date'}</span><span className="th-node-summary">{transactionSummary(record)}</span></summary>
           <div className="th-node-detail">{renderRecord ? renderRecord(record) : <p>{record.transaction.evidence_excerpt || record.transaction.source_ref}</p>}</div>
         </details></li>;
       })}</ol>

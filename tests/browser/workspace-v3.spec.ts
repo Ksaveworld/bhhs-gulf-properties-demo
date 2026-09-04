@@ -81,6 +81,7 @@ test('directory create retains a guest review across sign-in and a failed save; 
   await confirm.getByRole('button', { name: 'Confirm & Create', exact: true }).click();
   await expect(confirm).toContainText('Saving could not be confirmed');
   await expect(confirm).toContainText('Synthetic V3 Resume');
+  await expect(confirm.getByRole('button', { name: 'Confirm & Create', exact: true })).toHaveAttribute('aria-busy', 'false');
   expect(await page.evaluate(() => Object.keys(localStorage).filter(key => key.startsWith('bhhs:local-requirements:')))).toHaveLength(0);
   await page.evaluate(() => (window as Window & { restoreStorage?: () => void }).restoreStorage?.());
   await confirm.getByRole('button', { name: 'Confirm & Create', exact: true }).click();

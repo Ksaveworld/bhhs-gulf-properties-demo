@@ -58,7 +58,30 @@ test('an explicit upper size bound is not turned into a lower bound', async () =
     assert.equal(requirement.area_min, null);
     assert.equal(requirement.area_max, 1400);
     assert.equal(requirement.area_basis, 'unknown');
+    assert.ok(!homeReviewQuestions(requirement).some(message => /maximum or exact area is not supported/.test(message)));
+    assert.ok(homeReviewQuestions(requirement).some(message => /maximum size has been extracted/.test(message)));
   }
+});
+
+test('English and Chinese edits retain clear numeric contradictions as review questions', async () => {
+  for (const text of [
+    `${english} Size 900 to 1400 sq ft.`,
+    `${chinese} 面积900到1400平方英尺。`,
+  ]) {
+    const { requirement } = await prepareHomeRequirement(text, areas);
+    assert.ok(!homeReviewQuestions(requirement).some(message => /differs from the original notes/.test(message)));
+    const questions = homeReviewQuestions({ ...requirement, budget_max: 2_000_000, bedrooms_min: 3, area_max: 1200 });
+    assert.ok(questions.some(message => /maximum budget differs/.test(message)));
+    assert.ok(questions.some(message => /bedroom count differs/.test(message)));
+    assert.ok(questions.some(message => /size range differs/.test(message)));
+    assert.equal(requirement.raw_request, text);
+  }
+});
+
+test('changed upper-size limits stay flagged after supported extraction', async () => {
+  const { requirement } = await prepareHomeRequirement(`${english} Size no more than 1400 sq ft.`, areas);
+  assert.ok(!homeReviewQuestions(requirement).some(message => /maximum size differs/.test(message)));
+  assert.ok(homeReviewQuestions({ ...requirement, area_max: 1500 }).some(message => /maximum size differs/.test(message)));
 });
 
 test('fixed AED task currency does not silently reinterpret a stated USD budget', async () => {

@@ -22,6 +22,39 @@ export function extractClientName(text: string): string {
 }
 
 const englishWarning = (message: string) => message.replace(/\s*（面积口径待确认）|\s*\(面积口径待确认\)/g, '');
+const sizeUnit = '(sqft|sq\\.?\\s*ft|square feet|sqm|sq\\.?\\s*m|square met(?:er|re)s?|平方米|平米|平方英尺)';
+const sizeNumber = '([\\d,]+(?:\\.\\d+)?)';
+const sizeRangePattern = new RegExp(`${sizeNumber}\\s*(?:-|–|—|\\bto\\b|至|到)\\s*${sizeNumber}\\s*${sizeUnit}`, 'i');
+const maximumSizePattern = new RegExp(`(?:\\b(?:no more than|at most|maximum(?: of)?|max|up to)|最多|不超过|至多|上限)\\s*${sizeNumber}\\s*${sizeUnit}`, 'i');
+const sourceSize = (value: string, unit: string, to: ClientRequirement['area_unit']) => convertArea(Number(value.replaceAll(',', '')), /ft|feet|英尺/i.test(unit) ? 'sqft' : 'sqm', to ?? 'sqft');
+const amountsDiffer = (actual: number | null | undefined, expected: number) => actual == null || Math.abs(actual - expected) > 1e-6;
+
+/** Advisory comparisons only. Editing a number never erases the stated source condition. */
+function numericReview(requirement: HomeRequirement): string[] {
+  const text = requirement.raw_request;
+  const warnings: string[] = [];
+  const budget = text.match(/(?:\bbudget\b|预算)([^;；\n。]*)/i)?.[1]?.split(/\.(?=\s|$)|[,，](?!\d{3}(?:\D|$))/)[0];
+  if (budget) {
+    const amount = (value: string, suffix = '') => Number(value.replaceAll(',', '')) * ({ m: 1e6, million: 1e6, k: 1e3, thousand: 1e3, 万: 1e4, 亿: 1e8 }[suffix.toLowerCase()] ?? 1);
+    const number = '([\\d,]+(?:\\.\\d+)?)\\s*(million|thousand|[mk万亿])?';
+    const range = budget.match(new RegExp(`(?:AED\\s*)?${number}\\s*(?:-|–|—|\\bto\\b|至|到)\\s*(?:AED\\s*)?${number}`, 'i'));
+    const single = budget.match(new RegExp(number, 'i'));
+    const currency = budget.match(/\b(AED|USD|EUR|GBP)\b/i)?.[1]?.toUpperCase();
+    if (currency && currency !== requirement.currency) warnings.push('The budget currency differs from the original notes. Confirm the new currency and amount with the client.');
+    else if (range && (amountsDiffer(requirement.budget_min, amount(range[1], range[2] ?? range[4])) || amountsDiffer(requirement.budget_max, amount(range[3], range[4] ?? range[2])))) warnings.push('The budget range differs from the original notes. Confirm the updated limits with the client.');
+    else if (!range && single && amountsDiffer(requirement.budget_max, amount(single[1], single[2]))) warnings.push('The maximum budget differs from the original notes. Confirm the updated limit with the client.');
+  }
+  const bedroom = text.match(/\b(\d+|one|two|three|four|five|six)\s*[- ]?bed(?:room)?s?\b|([0-9一二两三四五六七八九十]+)\s*(?:居室?|卧室?|房)/i);
+  if (bedroom) {
+    const value = (bedroom[1] ?? bedroom[2]).toLowerCase();
+    const count = /^\d+$/.test(value) ? Number(value) : ({ one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, 一: 1, 二: 2, 两: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10 } as Record<string, number>)[value];
+    if (count !== undefined && amountsDiffer(requirement.bedrooms_min, count)) warnings.push('The bedroom count differs from the original notes. Confirm the updated number and whether it is a minimum or an exact count.');
+  }
+  const range = text.match(sizeRangePattern), cap = !range && text.match(maximumSizePattern);
+  if (range && (amountsDiffer(requirement.area_min, sourceSize(range[1], range[3], requirement.area_unit)) || amountsDiffer(requirement.area_max, sourceSize(range[2], range[3], requirement.area_unit)))) warnings.push('The size range differs from the original notes. Confirm the updated limits and measurement basis.');
+  if (cap && amountsDiffer(requirement.area_max, sourceSize(cap[1], cap[2], requirement.area_unit))) warnings.push('The maximum size differs from the original notes. Confirm the updated limit and measurement basis.');
+  return warnings;
+}
 
 /** A task-specific adapter on the existing rule engine, with no model or currency conversion. */
 export async function prepareHomeRequirement(text: string, areas: string[]): Promise<AssistantResult & { requirement: HomeRequirement }> {
@@ -36,13 +69,13 @@ export async function prepareHomeRequirement(text: string, areas: string[]): Pro
   requirement.currency = 'AED';
   // Unit conversion is exact and disclosed; it never supplies a measurement basis.
   if (requirement.area_unit === 'sqm' && requirement.area_min !== null) requirement.area_min = convertArea(requirement.area_min, 'sqm', 'sqft');
-  const sizeRange = text.match(/([\d,]+(?:\.\d+)?)\s*(?:-|–|—|\bto\b|至|到)\s*([\d,]+(?:\.\d+)?)\s*(sqft|sq\.?\s*ft|square feet|sqm|sq\.?\s*m|square met(?:er|re)s?|平方米|平米|平方英尺)/i);
+  const sizeRange = text.match(sizeRangePattern);
   if (sizeRange) {
     const multiplier = /ft|feet|英尺/i.test(sizeRange[3]) ? 1 : convertArea(1, 'sqm', 'sqft');
     requirement.area_min = Number(sizeRange[1].replace(/,/g, '')) * multiplier;
     requirement.area_max = Number(sizeRange[2].replace(/,/g, '')) * multiplier;
   }
-  const maximumSize = !sizeRange && text.match(/(?:\b(?:no more than|at most|maximum(?: of)?|max|up to)|最多|不超过|至多|上限)\s*([\d,]+(?:\.\d+)?)\s*(sqft|sq\.?\s*ft|square feet|sqm|sq\.?\s*m|square met(?:er|re)s?|平方米|平米|平方英尺)/i);
+  const maximumSize = !sizeRange && text.match(maximumSizePattern);
   if (maximumSize) {
     requirement.area_max = Number(maximumSize[1].replace(/,/g, '')) * (/ft|feet|英尺/i.test(maximumSize[2]) ? 1 : convertArea(1, 'sqm', 'sqft'));
     // The adapter deliberately did not invent a minimum for an upper bound.
@@ -51,8 +84,12 @@ export async function prepareHomeRequirement(text: string, areas: string[]): Pro
   requirement.area_unit = 'sqft';
   // Hidden selectors are not a reason to infer a client's area basis from a property.
   if (!requirement.area_basis) requirement.area_basis = 'unknown';
-  requirement.missing_questions = [...new Set(warnings)].join('\n') || null;
-  return { ...result, requirement, warnings: [...new Set(warnings)] };
+  const currentWarnings = warnings.map(message => maximumSize && /^A maximum or exact area is not supported/.test(message)
+    ? 'The stated maximum size has been extracted. Confirm the measurement basis before comparing sizes.'
+    : sizeRange && /^The stated area is used as a search minimum/.test(message)
+      ? 'The stated size range has been extracted. Confirm the measurement basis before comparing sizes.' : message);
+  requirement.missing_questions = [...new Set(currentWarnings)].join('\n') || null;
+  return { ...result, requirement, warnings: [...new Set(currentWarnings)] };
 }
 
 export async function prepareClientSearch(text: string, areas: string[]): Promise<{ filters: ClientDirectoryFilters; warnings: string[] }> {
@@ -108,6 +145,7 @@ export function homeReviewQuestions(requirement: HomeRequirement): string[] {
     ...((requirement.area_min !== null || requirement.area_max != null) && area.status !== 'known'
       ? ['Area basis needs confirmation. Confirm how the client’s size is measured before comparing property sizes.'] : []),
     ...requirementTextReview(requirement).warnings,
+    ...numericReview(requirement),
   ].map(englishWarning))];
 }
 

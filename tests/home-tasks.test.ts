@@ -84,6 +84,28 @@ test('changed upper-size limits stay flagged after supported extraction', async 
   assert.ok(homeReviewQuestions({ ...requirement, area_max: 1500 }).some(message => /maximum size differs/.test(message)));
 });
 
+test('upper-size-only input preserves a uniquely stated basis while missing, negated and conflicting bases stay unknown', async () => {
+  const known = await prepareHomeRequirement(`${english} Size no more than 1400 sq ft built_up area.`, areas);
+  assert.equal(known.requirement.area_min, null);
+  assert.equal(known.requirement.area_max, 1400);
+  assert.equal(known.requirement.area_basis, 'built_up');
+  assert.ok(filterListings(dataset.listing_snapshots as ListingSnapshot[], homePropertyFilters(known.requirement)).length > 0);
+  for (const basis of ['', 'not built_up area', 'built_up area or internal area', 'area basis: unknown']) {
+    const result = await prepareHomeRequirement(`${english} Size no more than 1400 sq ft ${basis}.`, areas);
+    assert.equal(result.requirement.area_basis, 'unknown');
+    assert.ok(homeReviewQuestions(result.requirement).some(message => /Area basis needs confirmation/.test(message)));
+  }
+});
+
+test('explicit-versus-legacy area conflicts retain both basis values even without size limits', () => {
+  const requirement = { ...createEmptyRequirement(), area_basis: 'internal' as const, hard_constraints: 'area basis: built_up' };
+  for (const value of [requirement, { ...requirement, area_min: 900, area_unit: 'sqft' as const }]) {
+    const warnings = homeReviewQuestions(value);
+    assert.ok(warnings.some(message => /Structured field \(internal\).*legacy statements \(built_up\)/.test(message)));
+    assert.ok(warnings.every(message => !message.includes('面积口径待确认')));
+  }
+});
+
 test('fixed AED task currency does not silently reinterpret a stated USD budget', async () => {
   const result = await prepareHomeRequirement('Client name: Alex. Dubai Marina, 2 bedroom apartment, budget USD 700k.', areas);
   assert.equal(result.requirement.currency, 'AED');

@@ -20,7 +20,7 @@ test('Chinese repeated hard conditions are traced to structured fields without d
   assert.equal(filterListings([listing], requirementsToFilters(base)).length, 1);
   const missing = { ...base, area_basis: null };
   assert.equal(filterListings([listing], requirementsToFilters(missing)).length, 0);
-  assert.ok(evaluateMatch(listing, missing).unknowns.some(reason => /面积口径待确认/.test(reason)));
+  assert.ok(evaluateMatch(listing, missing).unknowns.some(reason => /Area basis needs confirmation/.test(reason)));
   assert.deepEqual(base, before);
 });
 

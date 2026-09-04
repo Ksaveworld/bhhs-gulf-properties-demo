@@ -1,6 +1,6 @@
 import { ruleAssistant, type AssistantResult } from './assistant';
 import { convertArea, getAreaRangeError, requirementTextReview, requirementsToFilters, validDate, type Filters } from './matching';
-import { resolveRequirementArea } from './requirement-area';
+import { requirementAreaWarnings } from './requirement-area';
 import { EMPTY_CLIENT_DIRECTORY_FILTERS, clientDirectoryBudgetError, type ClientDirectoryFilters } from './client-directory';
 import type { ClientRequirement } from './types';
 
@@ -80,6 +80,13 @@ export async function prepareHomeRequirement(text: string, areas: string[]): Pro
     requirement.area_max = Number(maximumSize[1].replace(/,/g, '')) * (/ft|feet|英尺/i.test(maximumSize[2]) ? 1 : convertArea(1, 'sqm', 'sqft'));
     // The adapter deliberately did not invent a minimum for an upper bound.
     requirement.area_min = null;
+    // The original adapter only visits area-basis extraction for a minimum.
+    // An explicit upper bound can carry the same stated basis, without guessing one.
+    const bases = [...text.matchAll(/\b(?:area\s*basis\s*:\s*)?(built_up|internal|gross|land|unknown)\s*(?:area|basis)?\b/gi)]
+      .filter(match => match[1].toLowerCase() !== 'land' || /basis|area/i.test(match[0]) || /(?:sqft|sqm)\s*$/i.test(text.slice(0, match.index)));
+    const unique = [...new Set(bases.map(match => match[1].toLowerCase()))];
+    const negated = bases.some(match => /(?:\bnot|\bno|不是|非|不按)\s*$/i.test(text.slice(Math.max(0, match.index! - 20), match.index)));
+    if (unique.length === 1 && !negated) requirement.area_basis = unique[0] as ClientRequirement['area_basis'];
   }
   requirement.area_unit = 'sqft';
   // Hidden selectors are not a reason to infer a client's area basis from a property.
@@ -139,11 +146,9 @@ export function hasClientSearchCondition(filters: ClientDirectoryFilters): boole
 }
 
 export function homeReviewQuestions(requirement: HomeRequirement): string[] {
-  const area = resolveRequirementArea(requirement);
   return [...new Set([
     ...(requirement.missing_questions?.split('\n').map(value => value.trim()).filter(Boolean) ?? []),
-    ...((requirement.area_min !== null || requirement.area_max != null) && area.status !== 'known'
-      ? ['Area basis needs confirmation. Confirm how the client’s size is measured before comparing property sizes.'] : []),
+    ...requirementAreaWarnings(requirement),
     ...requirementTextReview(requirement).warnings,
     ...numericReview(requirement),
   ].map(englishWarning))];

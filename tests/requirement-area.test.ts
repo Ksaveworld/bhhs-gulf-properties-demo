@@ -26,7 +26,7 @@ test('empty and explicit unknown stay unconfirmed; an explicit unknown does not 
   const result = resolveRequirementArea({ area_basis: 'unknown', hard_constraints: 'area basis: built_up' });
   assert.equal(result.basis, 'unknown');
   assert.equal(result.status, 'unknown');
-  assert.match(result.messages[0], /面积口径待确认/);
+  assert.match(result.messages[0], /Area basis needs confirmation/);
 });
 
 test('conflicting field and legacy statements preserve the preferred field but block confirmed comparison', () => {

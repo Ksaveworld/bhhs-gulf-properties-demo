@@ -1,7 +1,7 @@
 import type { AreaBasis, ClientRequirement } from './types';
 
 export const AREA_BASES: AreaBasis[] = ['internal', 'gross', 'built_up', 'land', 'unknown'];
-export const AREA_CONFIRMATION = 'Area basis needs confirmation (面积口径待确认).';
+export const AREA_CONFIRMATION = 'Area basis needs confirmation.';
 
 /** Old v1 text is evidence, not a value to silently overwrite with a listing measurement. */
 export function legacyAreaBases(text: string | null): AreaBasis[] {

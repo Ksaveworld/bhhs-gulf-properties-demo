@@ -23,7 +23,7 @@ test('matching and filters agree for explicit, legacy, missing and conflicting a
     assert.equal(filterListings([listing], requirementsToFilters(req)).length, count);
     const match = evaluateMatch(listing, req);
     assert.equal(match.matched.some(reason => reason.startsWith('Area meets')), areaMatched);
-    if (!areaMatched) assert.ok(match.unknowns.some(reason => /面积口径待确认/.test(reason)));
+    if (!areaMatched) assert.ok(match.unknowns.some(reason => /Area basis needs confirmation/.test(reason)));
   }
 });
 
@@ -53,5 +53,5 @@ test('assistant supplies a declared field but does not assume a basis from area 
   const missing = await ruleAssistant.extract('Budget AED 3m; at least 1200 sqft.', { areas: [] });
   assert.equal(missing.requirement.area_basis, null);
   assert.equal(requirementsToFilters(missing.requirement).area_basis, 'unknown');
-  assert.ok(missing.warnings.some(reason => /面积口径待确认/.test(reason)));
+  assert.ok(missing.warnings.some(reason => /Area basis needs confirmation/.test(reason)));
 });

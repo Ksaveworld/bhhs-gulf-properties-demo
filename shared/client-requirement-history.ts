@@ -4,7 +4,7 @@ import type { LocalRequirementCopy } from './local-requirements';
 const FIELDS: Partial<Record<keyof ClientRequirement, string>> = {
   client_alias: 'Client name', raw_request: 'Original request', budget_min: 'Minimum budget', budget_max: 'Maximum budget',
   currency: 'Currency', budget_constraint: 'Budget limit', preferred_areas: 'Preferred location', property_types: 'Property type',
-  bedrooms_min: 'Minimum bedrooms', area_min: 'Minimum size', area_unit: 'Size unit', area_basis: 'Area basis',
+  bedrooms_min: 'Minimum bedrooms', area_min: 'Minimum size', area_max: 'Maximum size', area_unit: 'Size unit', area_basis: 'Area basis',
   market_preference: 'Completion preference', purchase_purpose: 'Purchase purpose', purchase_by: 'Purchase by',
   move_in_by: 'Available / move-in by', hard_constraints: 'Required conditions', soft_preferences: 'Preferences / notes',
   intent_evidence: 'Stated intent', missing_questions: 'Questions to clarify',

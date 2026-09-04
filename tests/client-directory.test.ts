@@ -72,10 +72,11 @@ test('property type filtering uses one current requirement together with name lo
 });
 
 test('unassigned means company client without sales owner and does not reclassify legacy copies', () => {
-  const rows = [requirement('UNASSIGNED', { sales_owner: null }), requirement('OWNED', { sales_owner: 'DEMO-SALES' }), requirement('LEGACY', { sales_owner: null }), requirement('PRIVATE', { sales_owner: null })];
+  const rows = [requirement('UNASSIGNED', { client_id: 'C-UNASSIGNED', sales_owner: null }), requirement('OWNED', { sales_owner: 'DEMO-SALES' }), requirement('LEGACY', { sales_owner: null }), requirement('PRIVATE', { sales_owner: null })];
   const visibility = (id: string): ClientVisibility => id === 'LEGACY' ? 'legacy' : id === 'PRIVATE' ? 'private' : 'company';
   assert.deepEqual(ids(rows, { visibility: 'unassigned' }, visibility), ['UNASSIGNED']);
   assert.deepEqual(ids(rows, { visibility: 'legacy' }, visibility), ['LEGACY']);
+  assert.deepEqual(ids([...rows, requirement('OWNED-OTHER-PLAN', { sales_owner: null })], { visibility: 'unassigned' }, visibility), ['UNASSIGNED']);
 });
 
 test('AED budget ranges overlap inclusively rather than requiring containment or silently converting currencies', () => {

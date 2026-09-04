@@ -69,6 +69,7 @@ export function filterClientDirectory(
   const location = normalized(filters.preferred_location);
   const propertyType = normalized(filters.property_type ?? '');
   const groups = new Map<string, ClientDirectoryGroup>();
+  const assignedCompanyClients = new Set(requirements.filter(row => getVisibility(row.requirement_id) === 'company' && row.sales_owner?.trim()).map(row => row.client_id));
 
   for (const requirement of requirements) {
     let group = groups.get(requirement.client_id);
@@ -82,7 +83,7 @@ export function filterClientDirectory(
     if (propertyType && !(requirement.property_types ?? []).some(type => normalized(type) === propertyType)) continue;
     const visibility = getVisibility(requirement.requirement_id);
     if (filters.visibility === 'unassigned') {
-      if (visibility !== 'company' || requirement.sales_owner?.trim()) continue;
+      if (visibility !== 'company' || assignedCompanyClients.has(requirement.client_id)) continue;
     } else if (filters.visibility !== 'all' && visibility !== filters.visibility) continue;
     if (!budgetOverlaps(requirement, filters)) continue;
     if (group.requirements.length === 0) group.client_alias = requirement.client_alias;

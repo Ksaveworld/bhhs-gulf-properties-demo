@@ -1,0 +1,54 @@
+.client-detail-drawer .ant-drawer-body { padding: 6px 26px 26px; }
+.client-detail-title > strong { color: var(--wine); font: 400 22px Georgia, serif; }
+.client-detail-title > div { display: flex; align-items: center; gap: 8px; margin-top: 8px; color: var(--muted); font-size: 11px; font-weight: 400; }
+.client-detail-title .ant-tag { margin: 0; font-size: 10px; }
+.client-detail-section-heading { display: flex; justify-content: space-between; align-items: center; gap: 15px; }
+.client-detail-section-heading h3 { margin: 0; color: var(--wine); font: 400 20px Georgia, serif; }
+.client-detail-section-heading > span { color: var(--muted); font-size: 12px; }
+.client-detail-current { padding: 16px 0 22px; border-bottom: 1px solid var(--line); }
+.client-detail-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 15px 24px; margin: 20px 0; }
+.client-detail-facts dt { color: var(--muted); font-size: 11px; margin-bottom: 5px; }
+.client-detail-facts dd { margin: 0; color: var(--ink); font-size: 13px; overflow-wrap: anywhere; white-space: pre-wrap; }
+.client-detail-wide { grid-column: 1 / -1; }
+.client-detail-current .ant-alert, .client-detail-viewings > .ant-alert { margin: 12px 0; }
+.client-detail-plan { margin-top: 18px; display: flex; flex-direction: column; gap: 7px; color: var(--muted); font-size: 12px; }
+.client-detail-plan select, .client-detail-viewing-form select, .client-detail-viewing-form input:not([type=checkbox]), .client-detail-viewing-form textarea { width: 100%; min-width: 0; padding: 9px 10px; border: 1px solid #d9d9d9; border-radius: 5px; background: #fff; color: var(--ink); font: inherit; }
+.client-detail-source, .client-detail-history { margin-top: 15px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 5px; color: var(--muted); font-size: 12px; line-height: 1.65; }
+.client-detail-source summary, .client-detail-history summary, .client-detail-viewing-entry summary, .client-detail-demo-tools summary { cursor: pointer; color: var(--wine); }
+.client-detail-source blockquote { margin: 12px 0; padding-left: 12px; border-left: 2px solid var(--line); white-space: pre-wrap; }
+.client-detail-history > ol { padding-left: 18px; }
+.client-detail-history > ol > li { margin-top: 16px; }
+.client-detail-history .ant-tag { font-size: 10px; }
+.client-detail-local-controls { margin-top: 14px; }
+.client-detail-local-controls:empty { display: none; }
+.client-detail-match-group { margin-top: 24px; }
+.client-detail-property { margin-top: 13px; border: 1px solid var(--line); border-radius: 5px; padding: 15px; }
+.client-detail-property .ant-btn-link { padding: 0; height: auto; white-space: normal; text-align: left; font-weight: 600; }
+.client-detail-property .client-detail-section-heading strong { font-size: 13px; white-space: nowrap; }
+.client-detail-property p { margin: 9px 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.client-detail-property .client-detail-match-reasons { color: var(--green); }
+.client-detail-property .client-detail-review-reasons { color: var(--amber); }
+.client-detail-property-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 12px; }
+.client-detail-property-footer > span { color: var(--muted); font-size: 11px; }
+.client-detail-viewings { padding-top: 16px; }
+.client-detail-viewing-timeline { list-style: none; margin: 20px 0; padding: 0 0 0 15px; border-left: 2px solid var(--line); }
+.client-detail-viewing-timeline > li { position: relative; padding: 0 0 22px 14px; }
+.client-detail-viewing-timeline > li:before { content: ''; position: absolute; left: -21px; top: 4px; width: 10px; height: 10px; border: 2px solid white; border-radius: 50%; background: var(--wine); }
+.client-detail-viewing-timeline time { color: var(--muted); font-size: 12px; }
+.client-detail-viewing-timeline .ant-tag { font-size: 10px; }
+.client-detail-viewing-timeline .ant-btn-link { height: auto; padding: 10px 0 0; }
+.client-detail-viewing-timeline p { margin: 8px 0; white-space: pre-wrap; font-size: 13px; }
+.client-detail-viewing-timeline small, .client-detail-viewing-form small { display: block; margin-top: 10px; color: var(--muted); font-size: 11px; }
+.client-detail-viewing-entry { border: 1px solid var(--line); padding: 16px; border-radius: 5px; }
+.client-detail-viewing-form { margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-size: 12px; }
+.client-detail-viewing-form > label { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.client-detail-viewing-form fieldset { border: 1px solid var(--line); border-radius: 5px; padding: 12px; }
+.client-detail-viewing-form fieldset p { color: var(--muted); margin-top: 0; }
+.client-detail-checkbox { display: flex; gap: 8px; align-items: center; margin-top: 9px; }
+.client-detail-demo-tools { margin-top: 24px; color: var(--muted); font-size: 12px; }
+@media (max-width: 650px) {
+  .client-detail-drawer .ant-drawer-body { padding: 6px 16px 22px; }
+  .client-detail-title > div { flex-wrap: wrap; }
+  .client-detail-section-heading { align-items: flex-start; }
+  .client-detail-property .client-detail-section-heading { flex-direction: column; gap: 8px; }
+}

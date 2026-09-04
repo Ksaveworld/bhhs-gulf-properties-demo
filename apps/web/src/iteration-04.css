@@ -1,0 +1,7 @@
+.v2-editor-footer { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.v2-editor-footer span { font-size:12px; color:var(--muted); }
+.main-content > .ant-alert { margin-bottom:16px; }
+.local-storage-notice { margin-top:8px; font-size:12px; color:var(--muted); }
+.home-task-workspace { margin-top:20px; }
+.local-copy-controls > span { overflow-wrap:anywhere; }
+@media (max-width:1100px) { .topbar {gap:12px;flex-wrap:wrap;height:auto;min-height:64px;padding-block:10px;} .topbar-right {flex-wrap:wrap;} }

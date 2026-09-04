@@ -1,7 +1,5 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { Children, isValidElement, type ReactElement, type ReactNode } from 'react';
-import { FilterEditor } from '../apps/web/src/components/FilterEditor';
 import { createEmptyRequirement } from '../shared/assistant';
 import { EMPTY_FILTERS, convertArea, evaluateMatch, filterListings, getAreaRangeError, requirementsToFilters, type Filters } from '../shared/matching';
 import type { ListingSnapshot } from '../shared/types';
@@ -118,53 +116,4 @@ test('manual upper size limits never enter the client requirement or change its 
   assert.equal(Object.hasOwn(request, 'area_max'), false);
 });
 
-type ElementProps = { children?: ReactNode; [name: string]: unknown };
-function control(tree: ReactNode, label: string): ReactElement<ElementProps> | undefined {
-  for (const child of Children.toArray(tree)) {
-    if (!isValidElement<ElementProps>(child)) continue;
-    if (child.props['aria-label'] === label) return child;
-    const nested = control(child.props.children, label);
-    if (nested) return nested;
-  }
-  return undefined;
-}
-
-test('library size controls show sqft and preserve the other bound when editing a converted sqm range', () => {
-  const original = freeze(filters({ area_min: 100, area_max: 150, area_unit: 'sqm', currency: 'USD', budget_max: 500000 }));
-  let edited: Filters | undefined;
-  const tree = FilterEditor({ value: original, areas: [], onChange: next => { edited = next; } });
-  assert.equal(control(tree, 'Currency'), undefined);
-  assert.equal(control(tree, 'Area unit'), undefined);
-  assert.equal(control(tree, 'Min. area'), undefined);
-  assert.ok(control(tree, 'Size range (sq ft)'));
-  assert.equal(control(tree, 'Min. size')?.props.value, convertArea(100, 'sqm', 'sqft'));
-  assert.equal(control(tree, 'Max. size')?.props.value, convertArea(150, 'sqm', 'sqft'));
-  (control(tree, 'Max. size')!.props.onChange as (next: number | null) => void)(1800);
-  assert.equal(edited?.area_unit, 'sqft');
-  assert.equal(edited?.area_min, convertArea(100, 'sqm', 'sqft'));
-  assert.equal(edited?.area_max, 1800);
-  assert.equal(edited?.currency, 'USD');
-  assert.equal(edited?.budget_max, 500000);
-  assert.equal(original.area_unit, 'sqm');
-  assert.equal(original.area_min, 100);
-});
-
-test('request review retains source currency and unit, never shows a manual maximum, and takes precedence over libraryMode', () => {
-  const original = freeze(filters({ area_min: 100, area_unit: 'sqm', currency: 'EUR' }));
-  const tree = FilterEditor({ value: original, areas: [], requirementsMode: true, libraryMode: true, onChange: () => assert.fail('Rendering must not change input') });
-  assert.equal(control(tree, 'Currency')?.props.value, 'EUR');
-  assert.equal(control(tree, 'Area unit')?.props.value, 'sqm');
-  assert.equal(control(tree, 'Min. area')?.props.value, 100);
-  assert.equal(control(tree, 'Max. size'), undefined);
-  assert.equal(control(tree, 'Size range (sq ft)'), undefined);
-});
-
-test('library does not relabel an existing unitless size as sqft or modify it during rendering', () => {
-  const original = freeze(filters({ area_min: 100, area_unit: null }));
-  const tree = FilterEditor({ value: original, areas: [], onChange: () => assert.fail('Rendering must not invent a unit') });
-  assert.equal(control(tree, 'Min. size')?.props.disabled, true);
-  assert.equal(control(tree, 'Max. size')?.props.disabled, true);
-  assert.equal(control(tree, 'Min. size')?.props.value, null);
-  assert.equal(original.area_unit, null);
-  assert.equal(original.area_min, 100);
-});
+// The retired FilterEditor component cases are covered by the V2 browser range and editor flows.

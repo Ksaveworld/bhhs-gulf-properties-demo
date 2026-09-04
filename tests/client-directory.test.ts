@@ -63,6 +63,21 @@ test('name and preferred location respond independently to current case-insensit
   assert.equal(hasClientDirectoryFilters(filters({ name: ' ', preferred_location: '  ' })), false);
 });
 
+test('property type filtering uses one current requirement together with name location and budget', () => {
+  const rows = [requirement('APARTMENT', { property_types: ['apartment'] }), requirement('VILLA', { property_types: ['villa'], preferred_areas: ['Demo Garden'] })];
+  assert.deepEqual(ids(rows, { property_type: 'Villa' }), ['VILLA']);
+  assert.deepEqual(ids(rows, { property_type: 'villa', preferred_location: 'Marina' }), []);
+  assert.deepEqual(ids(rows, { property_type: 'villa', preferred_location: 'Garden', budget_max: 2500000 }), ['VILLA']);
+  assert.equal(hasClientDirectoryFilters(filters({ property_type: 'villa' })), true);
+});
+
+test('unassigned means company client without sales owner and does not reclassify legacy copies', () => {
+  const rows = [requirement('UNASSIGNED', { sales_owner: null }), requirement('OWNED', { sales_owner: 'DEMO-SALES' }), requirement('LEGACY', { sales_owner: null }), requirement('PRIVATE', { sales_owner: null })];
+  const visibility = (id: string): ClientVisibility => id === 'LEGACY' ? 'legacy' : id === 'PRIVATE' ? 'private' : 'company';
+  assert.deepEqual(ids(rows, { visibility: 'unassigned' }, visibility), ['UNASSIGNED']);
+  assert.deepEqual(ids(rows, { visibility: 'legacy' }, visibility), ['LEGACY']);
+});
+
 test('AED budget ranges overlap inclusively rather than requiring containment or silently converting currencies', () => {
   const rows = [
     requirement('LOW', { budget_min: 1_000_000, budget_max: 2_000_000 }),
@@ -114,6 +129,6 @@ test('company, private and unassigned visibility filters apply per requirement b
   assert.deepEqual(ids(rows, { visibility: 'legacy' }, visibility), ['LEGACY']);
   assert.deepEqual(ids(rows, { visibility: 'private', preferred_location: 'Marina' }, visibility), []);
   assert.deepEqual(ids(rows, { visibility: 'all' }, visibility), ['COMPANY', 'PRIVATE', 'LEGACY']);
-  assert.equal(CLIENT_VISIBILITY_LABELS.legacy, 'Unassigned browser review');
+  assert.equal(CLIENT_VISIBILITY_LABELS.legacy, 'Legacy local copy');
   assert.equal(filterClientDirectory(rows, filters(), visibility).length, 1);
 });

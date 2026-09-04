@@ -1,22 +1,23 @@
 import type { ClientRequirement } from './types';
 
 export type ClientVisibility = 'company' | 'private' | 'legacy';
-export type ClientDirectoryScope = 'all' | ClientVisibility;
+export type ClientDirectoryScope = 'all' | 'unassigned' | ClientVisibility;
 
 export interface ClientDirectoryFilters {
   name: string;
   budget_min: number | null;
   budget_max: number | null;
   preferred_location: string;
+  property_type?: string;
   visibility: ClientDirectoryScope;
 }
 
 export const EMPTY_CLIENT_DIRECTORY_FILTERS: ClientDirectoryFilters = {
-  name: '', budget_min: null, budget_max: null, preferred_location: '', visibility: 'all',
+  name: '', budget_min: null, budget_max: null, preferred_location: '', property_type: '', visibility: 'all',
 };
 
 export const CLIENT_VISIBILITY_LABELS: Record<ClientVisibility, string> = {
-  company: 'Company', private: 'Private', legacy: 'Unassigned browser review',
+  company: 'Company', private: 'Private', legacy: 'Legacy local copy',
 };
 
 export interface ClientDirectoryGroup {
@@ -43,7 +44,7 @@ export function clientDirectoryBudgetError(range: BudgetRange): string | null {
 
 export function hasClientDirectoryFilters(filters: ClientDirectoryFilters): boolean {
   return Boolean(normalized(filters.name) || normalized(filters.preferred_location) ||
-    filters.budget_min !== null || filters.budget_max !== null || filters.visibility !== 'all');
+    normalized(filters.property_type ?? '') || filters.budget_min !== null || filters.budget_max !== null || filters.visibility !== 'all');
 }
 
 /** An interval lookup of stated AED budgets, not an assessment of buying power. */
@@ -66,6 +67,7 @@ export function filterClientDirectory(
   if (clientDirectoryBudgetError(filters)) return [];
   const name = normalized(filters.name);
   const location = normalized(filters.preferred_location);
+  const propertyType = normalized(filters.property_type ?? '');
   const groups = new Map<string, ClientDirectoryGroup>();
 
   for (const requirement of requirements) {
@@ -77,7 +79,11 @@ export function filterClientDirectory(
     group.total_requirements += 1;
     if (name && !normalized(requirement.client_alias).includes(name)) continue;
     if (location && !(requirement.preferred_areas ?? []).some(area => normalized(area).includes(location))) continue;
-    if (filters.visibility !== 'all' && getVisibility(requirement.requirement_id) !== filters.visibility) continue;
+    if (propertyType && !(requirement.property_types ?? []).some(type => normalized(type) === propertyType)) continue;
+    const visibility = getVisibility(requirement.requirement_id);
+    if (filters.visibility === 'unassigned') {
+      if (visibility !== 'company' || requirement.sales_owner?.trim()) continue;
+    } else if (filters.visibility !== 'all' && visibility !== filters.visibility) continue;
     if (!budgetOverlaps(requirement, filters)) continue;
     if (group.requirements.length === 0) group.client_alias = requirement.client_alias;
     group.requirements.push(requirement);

@@ -5,6 +5,8 @@ export type LocalRequirementCopy = {
   original_requirement_id: string | null;
   parent_requirement_id: string | null;
   saved_at: string;
+  /** Explicitly replaces its parent in the current view; absent on independent legacy copies. */
+  edit_kind?: 'revision';
 };
 
 export type StoredRequirements = { version: 1; key: string; revision: string; copies: LocalRequirementCopy[] };
@@ -40,7 +42,14 @@ export async function requirementStorageKey(dataset: Dataset): Promise<string> {
   }
   try {
     if (!['demo', 'product'].includes(dataset.meta.mode) || TABLES.some(table => !Array.isArray(dataset[table]))) throw new Error('Invalid dataset.');
-    const contents = canonical({ namespace, mode: dataset.meta.mode, tables: Object.fromEntries(TABLES.map(table => [table, dataset[table]])) });
+    // v1.2 may materialize an absent optional upper size bound as null. Keep older
+    // browser scopes stable; a supplied upper bound still creates a new version.
+    const contents = canonical({ namespace, mode: dataset.meta.mode, tables: Object.fromEntries(TABLES.map(table => [table,
+      table === 'client_requirements' ? dataset.client_requirements.map(row => {
+        const { area_max, ...legacy } = row as ClientRequirement & { area_max?: number | null };
+        return area_max == null ? legacy : row;
+      }) : dataset[table],
+    ])) });
     const hash = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(contents));
     return `bhhs:local-requirements:v1:${Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, '0')).join('')}`;
   } catch {
@@ -59,12 +68,13 @@ const ENUM_FIELDS: Record<string, readonly (string | null)[]> = {
   data_kind: ['real_public', 'real_authorized', 'demo'], verification_status: ['verified', 'needs_review', 'conflict'],
   usage_status: ['approved', 'pending', 'restricted'],
 };
-const REQUIREMENT_FIELDS = new Set<string>([...STRING_FIELDS, ...NULLABLE_STRING_FIELDS, ...NUMBER_FIELDS, ...ARRAY_FIELDS, ...Object.keys(ENUM_FIELDS)]);
+const REQUIREMENT_FIELDS = new Set<string>([...STRING_FIELDS, ...NULLABLE_STRING_FIELDS, ...NUMBER_FIELDS, ...ARRAY_FIELDS, ...Object.keys(ENUM_FIELDS), 'area_max']);
 
 function validRequirement(value: unknown): value is ClientRequirement {
   if (!isRecord(value) || Object.keys(value).some(key => !REQUIREMENT_FIELDS.has(key))) return false;
   if (!STRING_FIELDS.every(key => typeof value[key] === 'string') || !isId(value.requirement_id) || !isId(value.client_id)) return false;
   if (!NULLABLE_STRING_FIELDS.every(key => nullableString(value[key])) || !NUMBER_FIELDS.every(key => nullableNumber(value[key])) || !ARRAY_FIELDS.every(key => nullableArray(value[key]))) return false;
+  if (value.area_max != null && (typeof value.area_max !== 'number' || !Number.isFinite(value.area_max) || value.area_max < 0 || typeof value.area_min === 'number' && value.area_min > value.area_max)) return false;
   return Object.entries(ENUM_FIELDS).every(([key, allowed]) => key === 'area_basis' && value[key] === undefined || allowed.includes(value[key] as string | null));
 }
 
@@ -77,7 +87,8 @@ function validateCopies(copies: unknown, originals: ClientRequirement[]): assert
   }
   const local = new Map<string, LocalRequirementCopy>();
   for (const copy of copies) {
-    if (!isRecord(copy) || Object.keys(copy).length !== 4 || !['requirement', 'original_requirement_id', 'parent_requirement_id', 'saved_at'].every(key => Object.hasOwn(copy, key)) || !validRequirement(copy.requirement)) throw new Error(INVALID_DATA);
+    if (!isRecord(copy) || Object.keys(copy).some(key => !['requirement', 'original_requirement_id', 'parent_requirement_id', 'saved_at', 'edit_kind'].includes(key)) || !['requirement', 'original_requirement_id', 'parent_requirement_id', 'saved_at'].every(key => Object.hasOwn(copy, key)) || !validRequirement(copy.requirement)) throw new Error(INVALID_DATA);
+    if (Object.hasOwn(copy, 'edit_kind') && (copy.edit_kind !== 'revision' || !isId(copy.parent_requirement_id))) throw new Error(INVALID_DATA);
     if (!(copy.original_requirement_id === null || isId(copy.original_requirement_id)) || !(copy.parent_requirement_id === null || isId(copy.parent_requirement_id)) || !isId(copy.saved_at) || !Number.isFinite(Date.parse(copy.saved_at))) throw new Error(INVALID_DATA);
     const id = copy.requirement.requirement_id;
     if (imported.has(id) || local.has(id) || copy.parent_requirement_id === id) throw new Error(INVALID_DATA);

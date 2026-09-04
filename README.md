@@ -2,7 +2,9 @@
 
 销售整理需求 → 房源库筛选或规则助手匹配 → 房源详情 → 当前挂牌价、同屋历史和可比成交 → 潜客比较与销售沟通。
 
-当前 **V2 已上线**：[打开在线 Demo](https://bhhs-gulf-properties-demo.vercel.app)。包含 Home 三任务、精简房源库、客户详情双页签、需求修订历史和 PDF / Word 导出；独立 Reports 页面已移除。用户追加“上线，记得 commit”后，代码 `20d006a` 已正常推送并发布，匿名访问无需 Vercel 登录；应用内 Sales ID 仍为演示分区。逐项清单见 [V2 对照](docs/iteration-04-v2-checklist.md)，发布证据见 [开发交接](docs/dev-handoff.md)。
+当前本地为 **V3**：按新会议精简文案和来源，房产报告移入详情，客户 / 房产连续查看逐层返回，客户页内创建私客，日期统一英文输入。需求见 [V3 改版清单](docs/iteration-05-v3-requirements.md)，实际验证见 [V3 验收记录](docs/iteration-05-v3-acceptance.md) 与 [开发交接](docs/dev-handoff.md)。
+
+既有 [在线 Demo](https://bhhs-gulf-properties-demo.vercel.app) 的上次发布记录为 V2，本轮未推送或部署；应用内 Sales ID 仍为本机演示分区。
 
 代码仓库：[Ksaveworld/bhhs-gulf-properties-demo](https://github.com/Ksaveworld/bhhs-gulf-properties-demo)，本地分支 `main`。开发说明中文，界面英文，支持中英文规则输入；没有新增完整中文界面。
 
@@ -29,12 +31,14 @@ npm run dev
 1. **Home** 选择 Find a Property / Find a Client / Create a Private Client，输入内容并发送；检查自动填写的字段。必填项不足时显示数量和红框，补齐后点击 Continue。
 2. 找房、找客户直接进入相应的条件结果。创建私客需要演示登录，再经 Back / Edit 或 Confirm & Create 二次确认，成功后打开新客户详情。仅搜索不保存客户。
 3. **Property library** 即时修改地区、Price Range、Size Range、类型和卧室等条件；用 Asking price / Updated 表头上下箭头排序。Status 的信息按钮支持 Hover 和键盘 Focus。
-4. 点击房源名称或箭头打开详情；整行不触发抽屉。Overview 保留有效来源和原始证据，可保存当前销售的本机复核确认。
+4. 点击房源名称打开详情；整行不触发抽屉。Overview 合并来源入口，保留有效链接；原始证据仍在数据中。访客点击人工确认先选择销售身份，再由销售主动确认。
 5. **Price evidence** 先展示同屋成交图和可展开节点，再展示可比成交。合同日期、登记日期和币种分别成系列；0 笔显示空态，1 笔仅显示点，未知历史不补造。
-6. **Potential clients** 显示 Condition Met / Needs Clarification，排除项不放入潜客名单。每条都有条件理由和下一步建议，View Client Details 打开对应客户。
+6. **Potential clients** 显示 Condition Met / Needs Clarification，排除项不放入潜客名单。右上 **View Client Details** 在原页查看客户；进一步打开其他房产，关闭时逐层返回，保留父层页签和原筛选。
 7. **Clients & needs** 按姓名、地区、预算、房型及 Company / Private / Unassigned 筛选。详情只有 Recommended Properties / Viewing History 两个页签；推荐基于当前需求，独立购房方案可切换。
 8. **Edit Current Needs** 保存完整新修订，历史显示新增、修改及取消条件。Delete local copy 删除当前本机版本；Restore original 把原始条件保存成新版本，保留此前历史。看房评价仅在销售带入编辑并保存后成为新偏好。
-9. 房源行和客户详情的 **Export Report** 下载实际 PDF 或 DOCX 文件。房源简报含价格证据和潜客；客户简报使用选中方案、修订、推荐和看房记录。
+9. 房产详情和客户详情右上角的 **Export Report** 下载实际 PDF 或 DOCX 文件。房源简报含价格证据和潜客；客户简报使用选中方案、修订、推荐和看房记录。
+
+**Clients & needs → Add Private Client** 在当前页复用创建 / 二次确认流程。访客可先准备草稿，选择身份后继续保存。日期按英文 `YYYY-MM-DD` 输入；看房本机时间使用 `YYYY-MM-DDTHH:mm`，非法日期保留并提示修正。
 
 需求、本机销售确认和看房记录按数据来源、内容版本及 Sales ID 保存。写入并回读成功才报告成功；失败保留草稿并提示。公司客户的本机审核副本仍属于公司客户，审核者不自动成为来源分配人。历史无身份副本在退出登录后的 Local data notes 中保留。详见 [本机保存](docs/local-requirements.md) 和 [看房及简报](docs/report-records.md)。
 
@@ -84,13 +88,13 @@ npm run build:public
 npm run test:browser
 ```
 
-浏览器测试需先启动服务，使用本机 Chrome；V2 用例在 1366×768 实际操作。旧 42 条界面用例已逐项迁移，保留领域规则测试，不用 `skip` 或 `testIgnore` 隐藏失败。[覆盖映射和实际结果](docs/v2-browser-coverage.md)，最终 SHA 与验证记录见 [开发交接](docs/dev-handoff.md)。
+浏览器测试需先启动服务，使用本机 Chrome、1366×768。V3 保留并迁移 V2 用例，增加本轮交互验证；当前结果见 [V3 验收记录](docs/iteration-05-v3-acceptance.md)，最终 SHA 见 [开发交接](docs/dev-handoff.md)。旧 42 条界面用例迁移情况见 [V2 历史覆盖记录](docs/v2-browser-coverage.md)，未用 `skip` 或 `testIgnore` 隐藏失败。
 
-本轮最终结果：**188/188 领域测试、37/37 Chrome 实操通过，TypeScript 与公开构建通过**。浏览器全批耗时 2.5 分钟，涵盖实际下载、保存失败、刷新/重开、身份/批次隔离、双向匹配和旧数据兼容。
+V2 历史结果：**188/188 领域测试、37/37 Chrome 实操通过，TypeScript 与公开构建通过**。当时浏览器全批耗时 2.5 分钟，涵盖实际下载、保存失败、刷新/重开、身份/批次隔离、双向匹配和旧数据兼容。
 
-追加发布验证：重新执行 188/188 领域测试与公开构建；生产 Ready、GitHub Vercel success；全新匿名 Chrome 首页及两个 API 均 HTTP 200，44 条纯 demo。线上 Home 7 + Clients 5 + Exports 5 共 **17/17 通过，82.7 秒**，包含实际 PDF/DOCX 下载；0 跳过。独立匿名探针验证预算改变候选、同屋/可比价格、详情刷新及前端资源与本地构建一致。
+V2 历史发布验证：当时重新执行 188/188 领域测试与公开构建；生产 Ready、GitHub Vercel success；全新匿名 Chrome 首页及两个 API 均 HTTP 200，44 条纯 demo。线上 Home 7 + Clients 5 + Exports 5 共 **17/17 通过，82.7 秒**，包含实际 PDF/DOCX 下载；0 跳过。独立匿名探针验证预算改变候选、同屋/可比价格、详情刷新及前端资源与当时本地构建一致。这些是 V2 发布证据，不代表 V3 已上线。
 
-`build:public` 本身只构建，不执行部署。它从固定主演示数据生成 44 条纯 demo 静态快照，忽略 `BHHS_DATA_DIR`；不把接收批次带入公开构建。Vercel 关联 GitHub main，此次按追加授权推送并触发 Production 发布。本地与线上 origin 的浏览器副本不自动同步。
+`build:public` 本身只构建，不执行部署。它从固定主演示数据生成 44 条纯 demo 静态快照，忽略 `BHHS_DATA_DIR`；不把接收批次带入公开构建。Vercel 已关联 GitHub main，V2 曾按追加授权推送并触发 Production 发布；本轮 V3 只在本地提交，没有 push 或部署。本地与线上 origin 的浏览器副本不自动同步。
 
 ## 已知限制
 
@@ -98,4 +102,4 @@ npm run test:browser
 - 无综合评分、成交百分比、客户购买力推断、估值或外汇换算。排除项隐藏只改变展示，未放松匹配规则。
 - 演示 Sales ID 是本机分区，不是正式认证。没有服务端备份、跨设备同步、CRM 写回、自动外发或持续采集。
 - PDF 为分页图像，不能搜索或选择文字；DOCX 文字可编辑，含价格图。已验证下载与内容，未验证所有 Word/WPS 版本的排版兼容。
-- 主界面打包仍有大文件提示，导出模块按需加载；已验证线上访问与指定功能流程，未做公网性能、多浏览器和移动端验收。
+- 主界面打包仍有大文件提示，导出模块按需加载；V3 验证范围为本机 Chrome 指定功能流程，V2 线上验证为历史记录，未做公网性能、多浏览器和移动端验收。

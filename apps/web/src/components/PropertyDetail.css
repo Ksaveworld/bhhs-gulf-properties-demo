@@ -184,3 +184,8 @@
 @media (prefers-reduced-motion: reduce) {
   .property-detail *, .property-detail *::before, .property-detail *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+.property-detail .pd-sales-confirmation { padding: 14px 0; margin-top: 10px; border-top: 1px solid #e8e1e7; }
+.property-detail .pd-sales-confirmation dl { display: flex; flex-wrap: wrap; gap: 12px 24px; margin: 12px 0; }
+.property-detail .pd-sales-confirmation dt { color: #786977; font-size: 11px; }
+.property-detail .pd-sales-confirmation dd { margin: 3px 0 0; font-size: 12px; }
+.property-detail .pd-sales-confirmation .ant-alert { margin-top: 12px; }

@@ -1,16 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
-import { Alert, Button, Descriptions, Drawer, Empty, Select, Space, Tabs, Tag } from 'antd';
-import type {
-  ClientRequirement,
-  Dataset,
-  ListingSnapshot,
-  ListingTransactionLink,
-  SourceRecord,
-  Transaction,
-} from '../../../../shared/types';
-import { buildClientGroups, countClientGroups, CLIENT_SORT_DESCRIPTIONS, type ClientSort, type ClientGroup, type RequirementAssessment } from '../../../../shared/client-priorities';
-import { getPriceEvidence } from '../../../../shared/pricing';
+import { useEffect, useState } from 'react';
+import { Alert, Button, Checkbox, Descriptions, Drawer, Empty, Space, Tabs, Tag } from 'antd';
+import type { ClientRequirement, Dataset, ListingSnapshot, SourceRecord } from '../../../../shared/types';
+import { buildClientGroups, type ClientGroup } from '../../../../shared/client-priorities';
+import { getPriceEvidence, type LinkedTransaction } from '../../../../shared/pricing';
 import { uniqueHistoryRecords } from '../../../../shared/transaction-history';
+import { listingConfirmationKey, loadListingConfirmation, saveListingConfirmation, type ListingConfirmation } from '../../../../shared/listing-confirmation';
+import { propertyAreaSqft, propertyDisplayName } from '../../../../shared/property-presentation';
+import type { ViewingRecord } from '../../../../shared/viewing-records';
 import { TransactionHistory } from './TransactionHistory';
 import './PropertyDetail.css';
 
@@ -20,341 +16,146 @@ interface PropertyDetailProps {
   requirements: ClientRequirement[];
   onClose: () => void;
   onViewClient: (requirement: ClientRequirement) => void;
+  salesId?: string | null;
+  storageScope?: string | null;
+  viewingRecords?: ViewingRecord[];
 }
-
 const numberFormatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
 const labels: Record<string, string> = {
-  ready: 'Ready', off_plan: 'Off-plan', active: 'Active listing', withdrawn: 'Withdrawn listing',
-  sold: 'Marked sold by source', unknown: 'Unknown', needs_review: 'Needs review',
-  verified: 'Verified', conflict: 'Conflicting evidence', internal: 'Internal area',
-  gross: 'Gross area', built_up: 'Built-up area', land: 'Land area',
+  ready: 'Ready', off_plan: 'Off-plan', active: 'Active', withdrawn: 'Withdrawn', sold: 'Sold',
+  unknown: 'Unknown', needs_review: 'Needs review', verified: 'Verified', conflict: 'Conflicting evidence',
+  internal: 'Internal area', gross: 'Gross area', built_up: 'Built-up area', land: 'Land area',
   real_public: 'Public source data', real_authorized: 'Authorized data', demo: 'Demo data',
   whole_unit: 'Whole unit', partial_share: 'Partial share', bulk: 'Bulk transaction',
-  self_use: 'Own use', investment: 'Investment', mixed: 'Mixed purpose',
-  contract: 'Contract date', registration: 'Registration date',
+  self_use: 'Own use', investment: 'Investment', mixed: 'Mixed purpose', contract: 'Contract date', registration: 'Registration date',
 };
-
-function label(value: string | null | undefined): string {
-  if (!value) return 'Not supplied';
-  return labels[value] ?? value.replaceAll('_', ' ');
-}
-
-function money(value: number | null, currency: string | null): string {
-  if (value === null || !Number.isFinite(value)) return 'Price not supplied';
-  return `${currency && currency !== 'other' ? currency : 'Currency not specified'} ${numberFormatter.format(value)}`;
-}
-
-function area(value: number | null, unit: string | null): string {
-  if (value === null || !Number.isFinite(value)) return 'Area not supplied';
-  return `${numberFormatter.format(value)} ${unit === 'sqm' ? 'm²' : unit === 'sqft' ? 'sq ft' : '(unit not supplied)'}`;
-}
-
-function bedrooms(value: number | null): string {
-  return value === null ? 'Bedrooms not supplied' : value === 0 ? 'Studio' : `${value} bedroom${value === 1 ? '' : 's'}`;
-}
-
+function label(value: string | null | undefined): string { return value ? labels[value] ?? value.replaceAll('_', ' ') : 'Not supplied'; }
+function money(value: number | null, currency: string | null): string { return value === null || !Number.isFinite(value) ? 'Price not supplied' : (currency && currency !== 'other' ? currency : 'Currency not specified') + ' ' + numberFormatter.format(value); }
+function area(value: number | null, unit: string | null): string { return value === null || !Number.isFinite(value) ? 'Size not supplied' : numberFormatter.format(value) + ' ' + (unit === 'sqm' ? 'm²' : unit === 'sqft' ? 'sq ft' : '(unit not supplied)'); }
+function bedrooms(value: number | null): string { return value === null ? 'Bedrooms not supplied' : value === 0 ? 'Studio' : value + ' bedroom' + (value === 1 ? '' : 's'); }
 function date(value: string | null): string {
   if (!value) return 'Not supplied';
-  // Date-only facts retain their recorded calendar day. Timestamp facts retain the time and zone.
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString().replace('T', ' ').replace('.000Z', ' UTC');
 }
-
 function SourceReference({ value }: { value: string | null | undefined }) {
   if (!value) return <span className="pd-muted">Not supplied</span>;
   let safeUrl: string | null = null;
-  try {
-    const url = new URL(value);
-    if (url.protocol === 'http:' || url.protocol === 'https:') safeUrl = url.href;
-  } catch {
-    // Evidence IDs and local references remain plain text; they are not navigable URLs.
-  }
-  return safeUrl
-    ? <a href={safeUrl} target="_blank" rel="noopener noreferrer" className="pd-source-ref">{value}</a>
-    : <span className="pd-source-ref">{value}</span>;
+  try { const url = new URL(value); if (url.protocol === 'http:' || url.protocol === 'https:') safeUrl = url.href; } catch { /* Non-URL evidence references remain readable text. */ }
+  return safeUrl ? <a href={safeUrl} target="_blank" rel="noopener noreferrer" className="pd-source-ref" title={value}>View Source</a> : <span className="pd-source-ref">{value}</span>;
 }
-
-function DataTag({ kind }: { kind: SourceRecord['data_kind'] }) {
-  return <Tag className={kind === 'demo' ? 'pd-demo-tag' : 'pd-data-tag'}>{label(kind)}</Tag>;
-}
-
 function SourceDetails({ source }: { source: SourceRecord }) {
-  return (
-    <Descriptions className="pd-descriptions" size="small" column={{ xs: 1, sm: 2 }} layout="vertical">
-      <Descriptions.Item label="Source">{source.source_name || 'Not supplied'}</Descriptions.Item>
-      <Descriptions.Item label="Source reference"><SourceReference value={source.source_ref} /></Descriptions.Item>
-      <Descriptions.Item label="Source date">{date(source.source_date)}</Descriptions.Item>
-      <Descriptions.Item label="Snapshot captured">{date(source.captured_at)}</Descriptions.Item>
-      <Descriptions.Item label="Verification">{label(source.verification_status)}</Descriptions.Item>
-      <Descriptions.Item label="Usage review">{label(source.usage_status)}</Descriptions.Item>
-      <Descriptions.Item label="Reviewed by">{source.reviewed_by || 'Not supplied'}</Descriptions.Item>
-      <Descriptions.Item label="Data nature"><DataTag kind={source.data_kind} /></Descriptions.Item>
-    </Descriptions>
-  );
+  return <Descriptions className="pd-descriptions" size="small" column={{ xs: 1, sm: 2 }} layout="vertical">
+    <Descriptions.Item label="Source">{source.data_kind === 'demo' ? 'Illustrative demo source' : source.source_name || 'Not supplied'}</Descriptions.Item>
+    <Descriptions.Item label="Source Reference"><SourceReference value={source.source_ref} /></Descriptions.Item>
+    <Descriptions.Item label="Source Date">{date(source.source_date)}</Descriptions.Item>
+    <Descriptions.Item label="Source Verification">{label(source.verification_status)}</Descriptions.Item>
+  </Descriptions>;
 }
-
-function EvidenceNote({ excerpt, notes }: { excerpt: string | null; notes: string | null }) {
-  if (!excerpt && !notes) return null;
-  return (
-    <div className="pd-evidence-note">
-      {excerpt && <div><h4>Source evidence</h4><blockquote>{excerpt}</blockquote></div>}
-      {notes && <div><h4>Record notes</h4><p>{notes}</p></div>}
-    </div>
-  );
+function OriginalEvidence({ excerpt }: { excerpt: string | null }) {
+  return excerpt ? <div className="pd-evidence-note"><h4>Original Evidence</h4><blockquote>{excerpt}</blockquote></div> : null;
 }
-
-function Overview({ listing }: { listing: ListingSnapshot }) {
-  const pricePerArea = listing.asking_price !== null && listing.area_value !== null && listing.area_value > 0 && listing.area_unit
-    ? listing.asking_price / listing.area_value
-    : null;
-  return (
-    <div className="pd-tab-content">
-      <section className="pd-price-block" aria-label="Asking price">
-        <div>
-          <span className="pd-eyebrow">{listing.listing_status === 'active' ? 'Current asking price' : 'Recorded asking price'}</span>
-          <div className="pd-price">{money(listing.asking_price, listing.currency)}</div>
-          <p className="pd-price-note">Asking price from this listing snapshot · not a completed sale price.</p>
-        </div>
-        {pricePerArea !== null && (
-          <div className="pd-unit-price">
-            <strong>{money(pricePerArea, listing.currency)} / {listing.area_unit === 'sqm' ? 'm²' : 'sq ft'}</strong>
-            <span>{label(listing.area_basis)} · calculated from this snapshot</span>
-          </div>
-        )}
-      </section>
-
-      {listing.listing_status === 'withdrawn' && (
-        <Alert type="warning" showIcon message="This listing is withdrawn." description="Withdrawal does not establish a completed sale. The price above is the retained asking price from this snapshot." />
-      )}
-      {listing.listing_status === 'sold' && (
-        <Alert type="info" showIcon message="The source marks this listing as sold." description="The asking price is not the transaction amount. Check Price evidence for an eligible linked sale record." />
-      )}
-
-      <section className="pd-section" aria-labelledby="pd-property-facts">
-        <h3 id="pd-property-facts">Property facts</h3>
-        <div className="pd-fact-strip">
-          <div><span>Property type</span><strong>{label(listing.property_type)}</strong></div>
-          <div><span>Bedrooms</span><strong>{bedrooms(listing.bedrooms)}</strong></div>
-          <div><span>Recorded area</span><strong>{area(listing.area_value, listing.area_unit)}</strong><small>{label(listing.area_basis)}</small></div>
-        </div>
-        <Descriptions className="pd-descriptions" size="small" column={{ xs: 1, sm: 2 }} layout="vertical">
-          <Descriptions.Item label="Area">{listing.area_name || 'Not supplied'}</Descriptions.Item>
-          <Descriptions.Item label="Building">{listing.building_name || 'Not supplied'}</Descriptions.Item>
-          <Descriptions.Item label="Unit reference">{listing.unit_ref || 'Not supplied'}</Descriptions.Item>
-          <Descriptions.Item label="Completion segment">{label(listing.market_segment)}</Descriptions.Item>
-          <Descriptions.Item label="Listing status">{label(listing.listing_status)}</Descriptions.Item>
-          <Descriptions.Item label="Available from">{date(listing.availability_date)}</Descriptions.Item>
-          <Descriptions.Item label="First listed">{date(listing.listed_at)}</Descriptions.Item>
-          <Descriptions.Item label="Snapshot captured">{date(listing.captured_at)}</Descriptions.Item>
-        </Descriptions>
-        <p className="pd-field-note">Ready / off-plan describes the completion segment. Active / withdrawn / sold describes the listing status.</p>
-        <div className="pd-amenities"><h4>Disclosed amenities</h4>{listing.amenities?.length
-          ? <Space size={[4, 6]} wrap>{[...new Set(listing.amenities)].map((amenity) => <Tag key={amenity}>{label(amenity)}</Tag>)}</Space>
-          : <p className="pd-muted">No amenities supplied. Absence from this record does not mean an amenity is unavailable.</p>}
-        </div>
-      </section>
-
-      <section className="pd-section" aria-labelledby="pd-record-source">
-        <h3 id="pd-record-source">Record & source</h3>
-        <div className="pd-identity-grid">
-          <div><span>Listing ID</span><code>{listing.listing_id}</code></div>
-          <div><span>Property ID</span><code>{listing.property_id || 'Not established'}</code></div>
-          <div><span>Snapshot ID</span><code>{listing.snapshot_id}</code></div>
-        </div>
-        <SourceDetails source={listing} />
-        <EvidenceNote excerpt={listing.evidence_excerpt} notes={listing.notes} />
-      </section>
-    </div>
-  );
+function SalesConfirmation({ listing, salesId, scope }: { listing: ListingSnapshot; salesId: string | null; scope: string | null }) {
+  const access = { scope, salesId, listingId: listing.listing_id };
+  const [confirmation, setConfirmation] = useState<ListingConfirmation | null>(null);
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const key = salesId && scope ? listingConfirmationKey(access) : null;
+  function reload() {
+    setError(null);
+    if (!key) { setConfirmation(null); setLoadedKey(null); return; }
+    try { setConfirmation(loadListingConfirmation(localStorage, access)); setLoadedKey(key); }
+    catch (failure) { setConfirmation(null); setLoadedKey(null); setError(failure instanceof Error ? failure.message : 'The property confirmation could not be read.'); }
+  }
+  useEffect(() => { reload(); const listener = (event: StorageEvent) => { if (event.key === key || event.key === null) reload(); }; window.addEventListener('storage', listener); return () => window.removeEventListener('storage', listener); }, [key]);
+  const current = loadedKey === key && key ? confirmation : null;
+  function confirm(checked: boolean) {
+    try { const saved = saveListingConfirmation(localStorage, access, checked); setConfirmation(saved); setLoadedKey(key); setError(null); }
+    catch (failure) { setError(failure instanceof Error ? failure.message : 'Saving could not be confirmed.'); setLoadedKey(null); }
+  }
+  return <div className="pd-sales-confirmation">
+    <Checkbox checked={!!current} disabled={!key || loadedKey !== key} onChange={event => confirm(event.target.checked)}>Reviewed by local sales</Checkbox>
+    {current ? <dl data-testid="listing-confirmation"><div><dt>Reviewed by</dt><dd>{current.confirmed_by_sales_id}</dd></div><div><dt>Confirmed At</dt><dd>{date(current.confirmed_at)}</dd></div><div><dt>Confirmed By Sales ID</dt><dd>{current.confirmed_by_sales_id}</dd></div></dl> : <p className="pd-field-note">{salesId ? 'Not confirmed by the current sales identity.' : 'Sign in to confirm this property.'}</p>}
+    <p className="pd-field-note">Saved in this browser. Sales confirmation is separate from source verification.</p>
+    {error && <Alert data-testid="listing-confirmation-error" type="error" message={error} action={<Button size="small" onClick={reload}>Reload confirmation</Button>} />}
+  </div>;
 }
-
-function TransactionEvidence({ transaction, link, comparable }: {
-  transaction: Transaction;
-  link: ListingTransactionLink;
-  comparable: boolean;
-}) {
-  return (
-    <article className="pd-transaction" tabIndex={comparable ? undefined : -1} data-transaction-id={comparable ? undefined : transaction.transaction_id} aria-label={`${comparable ? 'Comparable transaction' : 'Same-property transaction'} ${transaction.transaction_id}`}>
-      <header className="pd-transaction-heading">
-        <div><span className="pd-eyebrow">{label(transaction.date_basis)}</span><h4>{date(transaction.transaction_date)}</h4></div>
-        <div className="pd-transaction-amount"><strong>{money(transaction.amount, transaction.currency)}</strong><DataTag kind={transaction.data_kind} /></div>
-      </header>
-      <div className="pd-transaction-context">
-        {[transaction.area_name, transaction.building_name].filter(Boolean).join(' · ') || 'Location not supplied'}
-        {' · '}{bedrooms(transaction.bedrooms)}{' · '}{area(transaction.area_value, transaction.area_unit)}
-        {' · '}{label(transaction.area_basis)}
-      </div>
-      <Descriptions className="pd-descriptions" size="small" column={{ xs: 1, sm: 2 }} layout="vertical">
-        <Descriptions.Item label="Record type / scope">{label(transaction.record_type)} / {label(transaction.transaction_scope)}</Descriptions.Item>
-        <Descriptions.Item label="Registration segment">{label(transaction.registration_segment)}</Descriptions.Item>
-        <Descriptions.Item label="Transaction ID"><code>{transaction.transaction_id}</code></Descriptions.Item>
-        <Descriptions.Item label="Property ID"><code>{transaction.property_id || 'Not established'}</code></Descriptions.Item>
-        <Descriptions.Item label="Original source record ID"><code>{transaction.source_record_id || 'Not supplied'}</code></Descriptions.Item>
-        <Descriptions.Item label="Unit reference">{transaction.unit_ref || 'Not supplied'}</Descriptions.Item>
-      </Descriptions>
-      <div className="pd-link-evidence">
-        <h4>{comparable ? 'Why this is a comparable' : 'Same-property association'}</h4>
-        <p>{link.match_basis || 'Association basis not supplied'}</p>
-        <div className="pd-differences"><strong>Recorded differences</strong><span>{link.differences || 'No differences documented in the supplied link.'}</span></div>
-        <dl>
-          <div><dt>Link ID</dt><dd><code>{link.link_id}</code></dd></div>
-          <div><dt>Evidence reference</dt><dd><SourceReference value={link.evidence_refs} /></dd></div>
-          <div><dt>Link verification</dt><dd>{label(link.verification_status)} · {label(link.data_kind)}</dd></div>
-          <div><dt>Link review</dt><dd>{link.reviewed_by || 'Reviewer not supplied'} · {date(link.reviewed_at)}</dd></div>
-        </dl>
-        {link.notes && <p className="pd-field-note">{link.notes}</p>}
-      </div>
-      <details className="pd-source-details">
-        <summary>Transaction source & evidence</summary>
-        <SourceDetails source={transaction} />
-        <EvidenceNote excerpt={transaction.evidence_excerpt} notes={transaction.notes} />
-      </details>
-    </article>
-  );
+function Overview({ listing, salesId, scope }: { listing: ListingSnapshot; salesId: string | null; scope: string | null }) {
+  const sqft = propertyAreaSqft(listing);
+  const pricePerArea = listing.asking_price !== null && sqft !== null && sqft > 0 ? listing.asking_price / sqft : null;
+  return <div className="pd-tab-content">
+    <section className="pd-price-block" aria-label="Asking price"><div><span className="pd-eyebrow">{listing.listing_status === 'active' ? 'Current asking price' : 'Recorded asking price'}</span><div className="pd-price">{money(listing.asking_price, listing.currency)}</div><p className="pd-price-note">Asking price, not a completed sale price.</p></div>{pricePerArea !== null && <div className="pd-unit-price"><strong>{money(pricePerArea, listing.currency)} / sq ft</strong><span>{label(listing.area_basis)}</span></div>}</section>
+    <section className="pd-section" aria-labelledby="pd-property-facts"><h3 id="pd-property-facts">Property Facts</h3><div className="pd-fact-strip">
+      <div><span>Property Type</span><strong>{label(listing.property_type)}</strong></div><div><span>Bedrooms</span><strong>{bedrooms(listing.bedrooms)}</strong></div><div><span>Size</span><strong>{area(sqft, 'sqft')}</strong><small>{label(listing.area_basis)}{listing.area_unit === 'sqm' ? ' · converted from m²' : ''}</small></div>
+    </div><Descriptions className="pd-descriptions" size="small" column={{ xs: 1, sm: 2 }} layout="vertical">
+      <Descriptions.Item label="Area / Location">{listing.area_name || 'Not supplied'}</Descriptions.Item><Descriptions.Item label="Property">{propertyDisplayName(listing)}</Descriptions.Item>
+      {listing.unit_ref && <Descriptions.Item label="Unit Reference">{listing.unit_ref}</Descriptions.Item>}
+      <Descriptions.Item label="Completion Status">{label(listing.market_segment)}</Descriptions.Item><Descriptions.Item label="Listing Status">{label(listing.listing_status)}</Descriptions.Item>
+      <Descriptions.Item label="Available From">{date(listing.availability_date)}</Descriptions.Item><Descriptions.Item label="Updated">{date(listing.captured_at)}</Descriptions.Item>
+    </Descriptions><div className="pd-amenities"><h4>Disclosed Amenities</h4>{listing.amenities?.length ? <Space size={[4, 6]} wrap>{[...new Set(listing.amenities)].map(amenity => <Tag key={amenity}>{label(amenity)}</Tag>)}</Space> : <p className="pd-muted">Not supplied.</p>}</div></section>
+    <section className="pd-section" aria-labelledby="pd-record-source"><h3 id="pd-record-source">Record and Source</h3><div className="pd-identity-grid"><div><span>Listing ID</span><code>{listing.listing_id}</code></div><div><span>Property ID</span><code>{listing.property_id || 'Not established'}</code></div></div>
+      <SourceDetails source={listing} /><SalesConfirmation listing={listing} salesId={salesId} scope={scope} /><OriginalEvidence excerpt={listing.evidence_excerpt} />
+    </section>
+  </div>;
 }
-
+function TransactionEvidence({ record, comparable = false }: { record: LinkedTransaction; comparable?: boolean }) {
+  const { transaction, link } = record;
+  return <article className="pd-transaction" aria-label={(comparable ? 'Comparable transaction ' : 'Same-property transaction ') + transaction.transaction_id}>
+    {comparable && <header className="pd-transaction-heading"><div><span className="pd-eyebrow">{label(transaction.date_basis)}</span><h4>{date(transaction.transaction_date)}</h4></div><strong>{money(transaction.amount, transaction.currency)}</strong></header>}
+    <div className="pd-transaction-context">{[transaction.area_name, transaction.building_name].filter(Boolean).join(' · ')} · {bedrooms(transaction.bedrooms)} · {area(transaction.area_value, transaction.area_unit)} · {label(transaction.area_basis)}</div>
+    <Descriptions className="pd-descriptions" size="small" column={{ xs: 1, sm: 2 }} layout="vertical"><Descriptions.Item label="Transaction Type">{label(transaction.record_type)} · {label(transaction.transaction_scope)}</Descriptions.Item><Descriptions.Item label="Transaction ID">{transaction.transaction_id}</Descriptions.Item>{transaction.source_record_id && <Descriptions.Item label="Source Record">{transaction.source_record_id}</Descriptions.Item>}{transaction.unit_ref && <Descriptions.Item label="Unit Reference">{transaction.unit_ref}</Descriptions.Item>}</Descriptions>
+    <div className="pd-link-evidence"><h4>{comparable ? 'Comparison Basis' : 'Property Association'}</h4><p>{link.match_basis}</p>{link.differences && <div className="pd-differences"><strong>Recorded Differences</strong><span>{link.differences}</span></div>}{link.evidence_refs && link.evidence_refs !== transaction.source_ref && <p className="pd-field-note">Association Evidence: <SourceReference value={link.evidence_refs} /></p>}</div>
+    <SourceDetails source={transaction} /><OriginalEvidence excerpt={transaction.evidence_excerpt} />
+  </article>;
+}
 export function PriceEvidence({ listing, dataset }: { listing: ListingSnapshot; dataset: Dataset }) {
   const evidence = getPriceEvidence(listing, dataset);
   const history = uniqueHistoryRecords(evidence.history);
-  const evidenceRoot = useRef<HTMLDivElement>(null);
-  function openTransaction(transactionId: string) {
-    const card = Array.from(evidenceRoot.current?.querySelectorAll<HTMLElement>('article[data-transaction-id]') ?? [])
-      .find(element => element.dataset.transactionId === transactionId);
-    if (!card) return;
-    const source = card.querySelector<HTMLDetailsElement>('details.pd-source-details');
-    if (source) source.open = true;
-    card.focus({ preventScroll: true });
-    card.scrollIntoView({ block: 'start' });
-  }
-  return (
-    <div className="pd-tab-content" ref={evidenceRoot}>
-      <p className="pd-intro">Recorded sale evidence is shown in its original currency, area unit and date basis. These records do not establish a valuation or a future sale price.</p>
-      <section className="pd-section pd-history-section" aria-labelledby="pd-same-property-history">
-        <div className="pd-section-heading"><h3 id="pd-same-property-history">Same-property history</h3><Tag>{history.length} record{history.length === 1 ? '' : 's'}</Tag></div>
-        <p className="pd-field-note">Eligible sale records with a verified association to this same property. A transaction ID alone does not identify a property.</p>
-        <TransactionHistory key={listing.snapshot_id} records={history} onSelectRecord={openTransaction} />
-        {history.length > 0 && <h4 className="pd-records-heading">Original transaction records</h4>}
-        {history.slice().reverse().map(({ transaction, link }) => (
-          <TransactionEvidence key={transaction.transaction_id} transaction={transaction} link={link} comparable={false} />
-        ))}
-      </section>
-      <section className="pd-section pd-comparable-section" aria-labelledby="pd-comparable-transactions">
-        <div className="pd-section-heading"><h3 id="pd-comparable-transactions">Comparable transactions</h3><Tag>{evidence.comparables.length} record{evidence.comparables.length === 1 ? '' : 's'}</Tag></div>
-        <p className="pd-field-note">Nearby or similar properties, shown separately from this property's history. Review the supplied association basis and differences before using a comparison.</p>
-        {evidence.comparables.length ? evidence.comparables.map(({ transaction, link }) => (
-          <TransactionEvidence key={link.link_id} transaction={transaction} link={link} comparable />
-        )) : (
-          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={<span>No eligible comparable sale records.<br /><span className="pd-muted">Reviewed comparable sales and documented differences are needed.</span></span>} />
-        )}
-      </section>
-      {evidence.excluded_count > 0 && <Alert type="info" showIcon message={`${evidence.excluded_count} linked record${evidence.excluded_count === 1 ? '' : 's'} not eligible for these price-evidence sections.`} description="Unresolved associations and records without the required verification, permissions or sale details are withheld from the price evidence above." />}
-    </div>
-  );
-}
-
-function ReasonList({ title, reasons, empty, tone }: { title: string; reasons: string[]; empty: string; tone: string }) {
-  return (
-    <div className={`pd-reason-group pd-reason-${tone}`}>
-      <h4>{title}</h4>
-      {reasons.length ? <ul>{reasons.map((reason, index) => <li key={`${index}-${reason}`}>{reason}</li>)}</ul> : <p className="pd-muted">{empty}</p>}
-    </div>
-  );
-}
-
-function RequirementAssessmentDetails({ assessment, onViewClient }: {
-  assessment: RequirementAssessment; onViewClient: PropertyDetailProps['onViewClient'];
-}) {
-  const { requirement, result, budget, timing } = assessment;
-  return <section className="pd-requirement-assessment" aria-label={`Requirement ${requirement.requirement_id}`} data-requirement-id={requirement.requirement_id}>
-    <div className="pd-requirement-heading"><code>{requirement.requirement_id}</code><Tag className={`pd-status-${result.status}`}>{result.status === 'match' ? 'Conditions met' : result.status === 'review' ? 'Needs clarification' : 'Hard condition conflict'}</Tag></div>
-    <p className="pd-field-note">{label(requirement.purchase_purpose)} · Sales owner: {requirement.sales_owner || 'Not supplied'}</p>
-    <p className="pd-field-note">{budget.range_label} · {budget.label}</p>
-    <p className="pd-field-note">Purchase by: {result.purchase_by || 'To be confirmed'} · {timing.label}</p>
-    <div className="pd-reasons-grid">
-      <ReasonList title="Matched conditions" reasons={result.matched} empty="No confirmed conditions yet." tone="matched" />
-      <ReasonList title="Conflicts & differences" reasons={result.conflicts} empty="No conflicts identified in the supplied fields." tone="conflict" />
-    </div>
-    <ReasonList title="Information to confirm" reasons={result.unknowns} empty="No additional gaps identified by this rule comparison." tone="unknown" />
-    <div className="pd-intent-evidence"><h4>Stated intent evidence</h4><p>{result.intent_evidence || 'Not supplied. Confirm the client’s stated interest.'}</p></div>
-    <details className="pd-source-details">
-      <summary>Client requirement & source</summary>
-      <h4>Recorded request</h4><blockquote className="pd-raw-request">{requirement.raw_request || 'Not supplied'}</blockquote>
-      <SourceDetails source={requirement} />
-      {requirement.notes && <p className="pd-field-note">{requirement.notes}</p>}
-    </details>
-    <footer className="pd-client-footer"><p>{result.next_action}</p><Button onClick={() => onViewClient(requirement)}>View properties for {requirement.requirement_id}</Button></footer>
-  </section>;
-}
-
-function ClientCard({ client, listing, onViewClient }: { client: ClientGroup; listing: ListingSnapshot; onViewClient: PropertyDetailProps['onViewClient'] }) {
-  const { requirement, result, budget, timing } = client.primary;
-  return <article className={`pd-client pd-client-${client.status}`} aria-label={`Client match for ${client.client_alias}`} data-client-id={client.client_id}>
-    <header className="pd-client-heading">
-      <div><h3>{client.client_alias}</h3><span className="pd-muted">{client.client_id} · Summary from {requirement.requirement_id}</span></div>
-      <div className="pd-client-tags"><DataTag kind={requirement.data_kind} /><Tag className={`pd-status-${client.status}`}>{client.status === 'match' ? 'Conditions met' : client.status === 'review' ? 'Needs clarification' : 'Hard condition conflict'}</Tag></div>
-    </header>
-    <div className="pd-client-key-facts">
-      <div><span>Stated budget</span><strong>{budget.range_label}</strong><small>{requirement.budget_constraint === 'unknown' ? 'Flexibility not supplied' : `${requirement.budget_constraint} limit`}</small></div>
-      <div><span>Budget fit</span><strong className={`pd-budget-${budget.status}`}>{budget.label}</strong><small>Asking price: {money(listing.asking_price, listing.currency)}</small></div>
-      <div><span>Purchase by</span><strong>{result.purchase_by || 'To be confirmed'}</strong><small>{timing.label}</small></div>
-    </div>
-    <div className="pd-client-intent"><h4>Stated intent evidence</h4><p>{result.intent_evidence || 'No intent evidence supplied. Ask about viewing interest and next steps.'}</p><span className="pd-field-note">Source: <SourceReference value={requirement.source_ref} /></span></div>
-    {(result.conflicts.length > 0 || result.unknowns.length > 0) && <p className="pd-client-open-question"><strong>{result.conflicts.length ? 'Difference to review: ' : 'To clarify: '}</strong>{result.conflicts[0] || result.unknowns[0]}{result.conflicts.length + result.unknowns.length > 1 ? ` (+${result.conflicts.length + result.unknowns.length - 1} more in the requirement)` : ''}</p>}
-    <footer className="pd-client-next"><p><strong>Next step</strong> {result.next_action}</p><Button onClick={() => onViewClient(requirement)}>View properties for {client.client_alias}</Button></footer>
-    <details className="pd-client-requirements"><summary>Review {client.requirements.length} requirement{client.requirements.length === 1 ? '' : 's'}</summary><p className="pd-field-note">Each requirement is assessed separately. This client is counted once using their best condition status; budgets and preferences are never combined.</p>{client.requirements.map(assessment => <RequirementAssessmentDetails key={assessment.requirement.requirement_id} assessment={assessment} onViewClient={onViewClient} />)}</details>
-  </article>;
-}
-
-function PotentialClients({ listing, requirements, onViewClient }: Pick<PropertyDetailProps, 'requirements' | 'onViewClient'> & { listing: ListingSnapshot }) {
-  const [sort, setSort] = useState<ClientSort>('conditions');
-  const clients = buildClientGroups(listing, requirements, sort);
-  const counts = countClientGroups(clients);
-  const renderGroup = (status: ClientGroup['status']) => clients.filter(client => client.status === status).map(client => <ClientCard key={client.client_id} client={client} listing={listing} onViewClient={onViewClient} />);
+  const comparables = [...new Map(evidence.comparables.map(record => [record.transaction.transaction_id, record])).values()];
   return <div className="pd-tab-content">
-    <div className="pd-client-counts" aria-label="Client counts">
-      <div><strong data-testid="client-count-match">{counts.match}</strong><span>conditions met</span></div>
-      <div><strong data-testid="client-count-review">{counts.review}</strong><span>need clarification</span></div>
-      <div><strong data-testid="client-count-excluded">{counts.excluded}</strong><span>hard conflicts</span></div>
-      <div><strong data-testid="client-count-total">{counts.total}</strong><span>unique clients · {requirements.length} requirements</span></div>
-    </div>
-    <p className="pd-field-note">Total = conditions met + needs clarification + hard conflicts. Each visible client is counted once using their best recorded requirement status. All names are available below, including the expandable conflict group.</p>
-    <p className="pd-intro">Start with clients whose recorded conditions are met. Budget and stated intent support a follow-up conversation; no sale probability or combined score is assigned.</p>
-    {clients.length > 0 && <div className="pd-client-sort">
-      <label htmlFor="pd-client-sort">Sort clients</label>
-      <Select id="pd-client-sort" aria-label="Sort clients" value={sort} onChange={setSort} options={[
-        { value: 'conditions', label: 'Condition status' },
-        { value: 'budget', label: 'Budget coverage' },
-        { value: 'purchase_date', label: 'Earliest purchase date' },
-      ]} />
-      <p className="pd-field-note" role="status">{CLIENT_SORT_DESCRIPTIONS[sort]}</p>
-    </div>}
-    {!clients.length ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No client requirements available. Add or import a sales-reviewed requirement to compare." /> : <>
-      <section className="pd-client-group" aria-label="Customers with conditions met"><h3>Conditions met ({counts.match} client{counts.match === 1 ? '' : 's'})</h3>{counts.match ? renderGroup('match') : <p className="pd-field-note">No clients have all recorded conditions confirmed for this property. Review the open questions below.</p>}</section>
-      <section className="pd-client-group" aria-label="Customers needing clarification"><h3>Needs clarification ({counts.review} client{counts.review === 1 ? '' : 's'})</h3>{counts.review ? renderGroup('review') : <p className="pd-field-note">No clients in this group.</p>}</section>
-      {counts.excluded > 0 && <details className="pd-conflict-clients"><summary>Hard condition conflicts ({counts.excluded} client{counts.excluded === 1 ? '' : 's'})</summary><p className="pd-field-note">These clients are excluded from the conditions-met count. Review each conflict before considering a follow-up.</p><div className="pd-client-group">{renderGroup('excluded')}</div></details>}
-    </>}
+    <section className="pd-section pd-history-section" aria-labelledby="pd-same-property-history"><div className="pd-section-heading"><h3 id="pd-same-property-history">Property Transaction History</h3><Tag>{history.length} records</Tag></div>
+      <TransactionHistory key={listing.snapshot_id} records={history} renderRecord={record => <TransactionEvidence record={record} />} />
+    </section>
+    <section className="pd-section pd-comparable-section" aria-labelledby="pd-comparable-transactions"><div className="pd-section-heading"><h3 id="pd-comparable-transactions">Comparable Property Transactions</h3><Tag>{comparables.length} records</Tag></div><p className="pd-field-note">Other properties. Review the comparison basis and recorded differences.</p>
+      {comparables.length ? comparables.map(record => <TransactionEvidence key={record.transaction.transaction_id} record={record} comparable />) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No eligible comparable sale records." />}
+    </section>
+    {evidence.excluded_count > 0 && <p className="pd-field-note">{evidence.excluded_count} linked records await complete sale or source evidence.</p>}
   </div>;
 }
-
-export function PropertyDetail({ listing, dataset, requirements, onClose, onViewClient }: PropertyDetailProps) {
+function ClientCard({ client, listing, onViewClient, viewingRecords }: { client: ClientGroup; listing: ListingSnapshot; onViewClient: PropertyDetailProps['onViewClient']; viewingRecords: ViewingRecord[] }) {
+  const { requirement, result, budget } = client.primary;
+  const viewed = viewingRecords.filter(record => record.client_id === client.client_id && record.listing_id === listing.listing_id).sort((a, b) => b.viewed_at.localeCompare(a.viewed_at))[0];
+  const question = result.unknowns[0] || result.conflicts[0] || requirement.missing_questions;
+  return <article className={'pd-client pd-client-' + client.status} aria-label={'Client match for ' + client.client_alias} data-client-id={client.client_id}>
+    <header className="pd-client-heading"><div><h3>{client.client_alias}</h3><span className="pd-muted">{client.client_id}</span></div><Tag className={'pd-status-' + client.status}>{client.status === 'match' ? 'Condition Met' : 'Needs Clarification'}</Tag></header>
+    <div className="pd-client-key-facts"><div><span>Core Needs</span><strong>{[requirement.preferred_areas?.join(', '), requirement.property_types?.map(label).join(', '), requirement.bedrooms_min !== null ? requirement.bedrooms_min + '+ bedrooms' : null].filter(Boolean).join(' · ') || 'To confirm'}</strong></div><div><span>Budget</span><strong>{budget.range_label}</strong><small>{budget.label}</small></div>{requirement.purchase_by && <div><span>Purchase By</span><strong>{requirement.purchase_by}</strong></div>}<div><span>Viewing</span><strong>{viewed ? 'Viewed ' + date(viewed.viewed_at) : 'No viewing recorded'}</strong></div></div>
+    {result.matched.length > 0 && <div className="pd-reason-group pd-reason-matched"><h4>Conditions Met</h4><ul>{result.matched.map(reason => <li key={reason}>{reason}</li>)}</ul></div>}
+    {question && <p className="pd-client-open-question"><strong>To Clarify: </strong>{question}</p>}
+    {requirement.intent_evidence && <p><strong>Stated Interest: </strong>{requirement.intent_evidence}</p>}
+    <p className="pd-field-note">Source: <SourceReference value={requirement.source_ref} /></p>
+    <footer className="pd-client-next"><p><strong>Next Action: </strong>{question ? 'Confirm this point with the client before recommending a viewing.' : 'Confirm current availability and discuss a viewing with the client.'}</p><Button onClick={() => onViewClient(requirement)}>View Client Details</Button></footer>
+    {result.unknowns.length + result.conflicts.length > 1 && <details className="pd-source-details"><summary>Other Questions to Clarify</summary><ul>{[...result.unknowns, ...result.conflicts].filter(value => value !== question).map(value => <li key={value}>{value}</li>)}</ul></details>}
+  </article>;
+}
+function PotentialClients({ listing, requirements, onViewClient, viewingRecords = [] }: Pick<PropertyDetailProps, 'requirements' | 'onViewClient' | 'viewingRecords'> & { listing: ListingSnapshot }) {
+  const clients = buildClientGroups(listing, requirements).filter(client => client.status !== 'excluded');
+  return <div className="pd-tab-content">{(['match', 'review'] as const).map(status => {
+    const group = clients.filter(client => client.status === status);
+    return <section className="pd-client-group" key={status} aria-label={status === 'match' ? 'Customers with conditions met' : 'Customers needing clarification'}><h3>{status === 'match' ? 'Condition Met' : 'Needs Clarification'} ({group.length})</h3>{group.length ? group.map(client => <ClientCard key={client.client_id} client={client} listing={listing} onViewClient={onViewClient} viewingRecords={viewingRecords} />) : <p className="pd-field-note">No clients in this group.</p>}</section>;
+  })}</div>;
+}
+export function PropertyDetail({ listing, dataset, requirements, onClose, onViewClient, salesId = null, storageScope = null, viewingRecords = [] }: PropertyDetailProps) {
   const [activeTab, setActiveTab] = useState('overview');
   useEffect(() => { setActiveTab('overview'); }, [listing?.snapshot_id]);
-  return (
-    <Drawer rootClassName="property-detail" width="min(900px, 96vw)" open={listing !== null} onClose={onClose} destroyOnClose title={listing ? (
-      <div className="pd-drawer-title"><div><span className="pd-eyebrow">Property detail</span><h2>{listing.title}</h2></div><DataTag kind={listing.data_kind} /></div>
-    ) : 'Property detail'}>
-      {listing && (
-        <>
-          <div className="pd-location"><span>{[listing.area_name, listing.building_name].filter(Boolean).join(' / ') || 'Location not supplied'}</span><Space size={4} wrap><Tag>{label(listing.market_segment)}</Tag><Tag>{label(listing.listing_status)}</Tag></Space></div>
-          {listing.data_kind === 'demo' && <div className="pd-demo-notice" role="note">Illustrative demo property, prices and evidence. Not a real BHHS listing or verified market information.</div>}
-          <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
-            { key: 'overview', label: 'Overview', children: <Overview listing={listing} /> },
-            { key: 'evidence', label: 'Price evidence', children: <PriceEvidence key={listing.snapshot_id} listing={listing} dataset={dataset} /> },
-            { key: 'clients', label: `Potential clients (${new Set(requirements.map(r => r.client_id)).size} clients)`, children: <PotentialClients key={listing.snapshot_id} listing={listing} requirements={requirements} onViewClient={onViewClient} /> },
-          ]} />
-        </>
-      )}
-    </Drawer>
-  );
+  return <Drawer rootClassName="property-detail" width="min(900px, 96vw)" open={listing !== null} onClose={onClose} destroyOnClose title={listing ? <div className="pd-drawer-title"><div><span className="pd-eyebrow">Property Details</span><h2>{propertyDisplayName(listing)}</h2></div>{listing.data_kind === 'demo' && <Tag className="pd-demo-tag">Demo data</Tag>}</div> : 'Property Details'}>
+    {listing && <><div className="pd-location"><span>{listing.area_name || 'Location not supplied'}</span><Space size={4} wrap><Tag>{label(listing.market_segment)}</Tag><Tag>{label(listing.listing_status)}</Tag></Space></div>
+      {listing.data_kind === 'demo' && <div className="pd-demo-notice" role="note">Illustrative demo property, prices and sources.</div>}
+      <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
+        { key: 'overview', label: 'Overview', children: <Overview listing={listing} salesId={salesId} scope={storageScope || dataset.meta.storage_namespace || null} /> },
+        { key: 'evidence', label: 'Price evidence', children: <PriceEvidence key={listing.snapshot_id} listing={listing} dataset={dataset} /> },
+        { key: 'clients', label: 'Potential clients', children: <PotentialClients key={listing.snapshot_id} listing={listing} requirements={requirements} onViewClient={onViewClient} viewingRecords={viewingRecords} /> },
+      ]} />
+    </>}
+  </Drawer>;
 }

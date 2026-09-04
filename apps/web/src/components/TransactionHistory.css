@@ -57,6 +57,20 @@
 .transaction-history .th-timeline-record { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; color: var(--th-muted); font-size: 11px; }
 .transaction-history .th-timeline-record > strong { color: var(--th-wine); font-family: Georgia, 'Times New Roman', serif; font-size: 19px; font-weight: 400; line-height: 1.3; }
 .transaction-history button:focus-visible, .transaction-history input:focus-visible, .transaction-history select:focus-visible, .transaction-history .th-chart-scroll:focus-visible { outline: 2px solid var(--th-wine); outline-offset: 3px; }
+.transaction-history .th-series-control { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }
+.transaction-history .th-series-control select { width: auto; max-width: 100%; }
+.transaction-history .th-series-control > span { color: var(--th-muted); font-size: 11px; }
+.transaction-history .th-selection-compact { min-height: 0; padding: 8px 12px; }
+.transaction-history .th-selection-compact > span { display: inline-block; margin-right: 12px; }
+.transaction-history .th-timeline-node { display: block; }
+.transaction-history .th-timeline-node details { min-width: 0; }
+.transaction-history .th-timeline-node summary { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 18px; cursor: pointer; min-height: 38px; padding: 2px 5px; }
+.transaction-history .th-timeline-node summary::before { content: '▸'; color: var(--th-wine); }
+.transaction-history .th-timeline-node details[open] > summary::before { content: '▾'; }
+.transaction-history .th-timeline-node summary:focus-visible { outline: 2px solid var(--th-wine); outline-offset: 2px; }
+.transaction-history .th-timeline-node summary strong { color: var(--th-wine); font-family: Georgia, serif; font-size: 19px; font-weight: 400; }
+.transaction-history .th-timeline-node summary > span { color: var(--th-muted); font-size: 11px; }
+.transaction-history .th-node-detail { padding: 8px 0 4px; }
 @media (max-width: 640px) {
   .transaction-history .th-controls { padding: 12px; gap: 10px; }
   .transaction-history .th-controls .th-series-field { flex-basis: 100%; }

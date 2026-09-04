@@ -7,6 +7,8 @@ type Snapshot = { dataset: Dataset; salesId: string | null; store: StoredRequire
 const failure = (error: unknown) => error instanceof Error ? error.message : 'Browser storage is unavailable. Imported records remain available.';
 
 /** The imported dataset is immutable. Only independently identified browser copies enter this store. */
+const EMPTY_COPIES: LocalRequirementCopy[] = [];
+
 export function useLocalRequirements(dataset: Dataset | null, salesId: string | null = null) {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [error, setError] = useState('');
@@ -69,7 +71,7 @@ export function useLocalRequirements(dataset: Dataset | null, salesId: string | 
 
   const active = snapshot?.dataset === dataset && snapshot.salesId === salesId ? snapshot.store : null;
   return {
-    copies: active?.copies ?? [], key: active?.key ?? null,
+    copies: active?.copies ?? EMPTY_COPIES, key: active?.key ?? null,
     loading: loading || (!!dataset && !snapshot && !error), writing, error,
     retry: () => setRefresh(value => value + 1),
     save: (copy: LocalRequirementCopy) => change(copies => [...copies, copy]),

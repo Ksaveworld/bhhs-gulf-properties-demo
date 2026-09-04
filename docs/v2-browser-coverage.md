@@ -115,3 +115,9 @@
 最终完整执行：Chrome，1366×768，12/12 通过，耗时 1.2 分钟。每例核对 pageerror 与页面横向溢出；批次/身份隔离、刷新重开、读写失败、原文冲突、删除恢复和双向结果均通过实际操作验证。`npm run check` 通过。默认 `playwright test --list` 已不再发现旧 7 个文件，配置与 helpers 保留原样。
 
 QA 产物留在忽略目录。先前失败记录留在 `.work/lifecycle-v2`、`.work/lifecycle-v2-final`，分别记录图标名称定位及透明离场图标问题；最终证据以 `.work/lifecycle-v2-complete` 为准。旧测试删除保留 Git 历史。上述结果是功能与技术验证，不构成 15 条 draft 参考或真实业务数据的验收确认。
+
+### 最终全量执行
+
+V2 全部 7 个 spec 统一执行：`npx playwright test --reporter=list --output .work/v2-final-browser`，**37/37 通过、0 跳过、耗时 2.5 分钟**。日志 `.work/v2-final-browser.log`。其中 Home 7、Clients 5、Exports 5、Lifecycle 12、Properties 5、Legacy owner 2、USD viewing 1。
+
+客户页 Add Private Client、旧公司副本归属、来源归属冲突及 USD 看房完整下载均已纳入此批实际操作。没有以截图或构建代替交互验证。最终版本代码 `0a5b733`、测试迁移 `bd3e431`，之后仅更新交接文档。

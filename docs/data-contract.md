@@ -1,6 +1,8 @@
-# BHHS Demo 数据接入契约 v1.1.0
+# BHHS Demo 数据接入契约 v1.2.0
 
 用户已确定主链路与产品/开发分工。本契约是控制塔提供的填写与接入格式，不代表客户已确认所有字段、阈值或预测能力。
+
+当前填写、业务规则及来源确认统一由用户收口；下表产品 A/B 是保留的历史资料分工。v1.2 新增可选 `area_max`，旧 v1.0/v1.1 输入继续兼容。
 
 ## 文件与责任
 
@@ -33,7 +35,7 @@
 ## 条件校验与事实边界
 
 1. verification_status=verified 需要实际 reviewed_by；关联 verified 还需 reviewed_at。
-2. 价格非空时需币种；面积非空需单位和口径；客户 area_min 非空需 area_unit；预算上下限须 min <= max。
+2. 价格非空时需币种；房源面积非空需单位和口径；客户 area_min 或 area_max 非空需 area_unit；面积及预算上下限须 min <= max。客户口径缺失时保留待确认。
 3. exact_property 必须有稳定房屋身份或授权记录对应证据；只有关联已核验且来源使用允许时才可作为该房屋历史。
 4. pricing_eligible=yes 的首版保守门槛：交易为 sale、whole_unit，金额/币种/日期明确，关联非 unresolved，来源与关联均 verified、usage_status=approved；可比记录还要检查地区、物业类型、面积口径、时间和显著差异。阈值由产品补充，不能宣称已校准估值。
 5. mortgage、gift、lease、bulk、partial_share 或 unknown 范围不进入首版住宅出售价格对比。下架不是成交，数据有来源不等于来源正确。
@@ -56,7 +58,7 @@
 
 ## 版本与空模板
 
-- 当前 `data/templates/` 顶层入口与 `data/templates/v1.1.0/` 提供相同的 v1.1.0 schema、五张空 CSV 和字段字典。
+- 当前 `data/templates/` 顶层入口与 `data/templates/v1.2.0/` 提供相同的 v1.2.0 schema、五张空 CSV 和字段字典；v1.1.0 目录保持原样。
 - 原 v1.0.0 schema、五张空 CSV、字典及契约保存在 `data/templates/v1.0.0/`，原 v1 Excel 保持不变。
 - 本次新版 Excel 另存为 `outputs/area-basis-v1.1.0/BHHS_数据字段模板_v1.1.0.xlsx`。所有填写区为空，字典示例仍只是独立格式说明。
 
@@ -166,6 +168,7 @@
 | `property_types` | 偏好物业类型 | multi_text | 选填 | 使用房源物业类型英文 key，多值用 \| 分隔。  |
 | `bedrooms_min` | 最少卧室数 | integer | 选填 | Studio 为 0，未知留空。  |
 | `area_min` | 最小面积 | number | 选填 | 同时记录单位；已明确的客户面积口径填 area_basis，未明确时留空或 unknown，不能从候选房源反向补齐。  |
+| `area_max` | 最大面积 | number | 选填 | v1.2 新增；非负，与 area_min 共用 area_unit / area_basis，不能小于下限。空值表示未提供上限。 |
 | `area_unit` | 面积单位 | enum | 条件必填 | 有最小面积时填写。 可选：sqm / sqft |
 | `area_basis` | 客户面积口径 | enum | 选填 | 客户明确说明的面积口径。新字段优先；空字段兼容 hard_constraints 中的英文口径表达，如 area basis: built_up。字段与文本冲突需确认；unknown 不算已知口径，不能回填候选房源口径。 可选：internal / gross / built_up / land / unknown |
 | `purchase_purpose` | 购买目的 | enum | 必填 | 客户主动说明的目的；未知用 unknown。 可选：self_use / investment / mixed / unknown |

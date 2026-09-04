@@ -4,7 +4,7 @@
 
 字段模板及含义以 `docs/data-contract.md`、`data/templates/schema.json` 为准，导入器不改字段 key。当前五表输入统一由用户收口：房源与证据使用 `listing_snapshots.csv`、`transactions.csv`、`listing_transaction_links.csv`；需求及人工参考使用 `client_requirements.csv`、`match_reference.csv`。
 
-当前模板为 **v1.1.0**，客户新增选填 `area_basis`（`internal/gross/built_up/land/unknown`），其余既有英文 key 保留。旧 v1.0.0 CSV 缺少该列或 JSON 缺少该字段仍可接收；新旧空模板分别保存在 `data/templates/v1.1.0/` 和 `data/templates/v1.0.0/`，不覆盖已填原件。新版 Excel 为 `outputs/area-basis-v1.1.0/BHHS_数据字段模板_v1.1.0.xlsx`，Excel 中文标题不作为接口 key。
+当前模板为 **v1.2.0**，在 v1.1 的客户选填 `area_basis` 基础上新增可选 `area_max`，上下限共用单位和口径。旧 v1.0/v1.1 CSV 缺列或 JSON 缺字段仍可接收；版本化空模板分别保存在 `data/templates/v1.2.0/`、`v1.1.0/` 和 `v1.0.0/`，不覆盖原件。已有 Excel `outputs/area-basis-v1.1.0/BHHS_数据字段模板_v1.1.0.xlsx` 保持原样；本轮 v1.2 提供 CSV/schema/字典，Excel 中文标题不作为接口 key。
 
 明确 `area_basis` 优先；字段缺省或空值时可用旧 `hard_constraints` 的 `area basis: built_up` 等英文标记。显式 unknown 不向旧文本或房源借值；字段与已知旧口径冲突时保留两者并提示确认，暂不进行面积资格判断。未知口径不会令整份合格需求被隔离，但应用面积条件时显示待确认和零候选说明。中文重复条件、矛盾和审核行为见 [需求审核说明](requirement-review.md)。
 

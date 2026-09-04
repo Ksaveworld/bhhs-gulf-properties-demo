@@ -1,6 +1,8 @@
-# BHHS 产品数据模板 v1.1.0
+# BHHS 产品数据模板 v1.2.0
 
 这是空白填写模板，不含真实房源、客户或成交记录。格式示例仅存在字段字典中。
+
+当前由用户统一填写和确认；下述产品 A/B 为历史资料分工。v1.2 新增可选面积上限 `area_max`；旧 Excel 与旧 CSV 可继续使用。
 
 ## 谁填哪些表
 
@@ -31,7 +33,7 @@
 
 ## 版本与空模板
 
-- 当前 `data/templates/` 顶层入口与 `data/templates/v1.1.0/` 提供相同的 v1.1.0 schema、五张空 CSV 和字段字典。
+- 当前顶层入口与 `data/templates/v1.2.0/` 提供相同的 v1.2.0 schema、五张空 CSV 和字段字典；v1.1.0 目录保持原样。
 - 原 v1.0.0 schema、五张空 CSV、字典及契约保存在 `data/templates/v1.0.0/`，原 v1 Excel 保持不变。
 - 本次新版 Excel 另存为 `outputs/area-basis-v1.1.0/BHHS_数据字段模板_v1.1.0.xlsx`。所有填写区为空，字典示例仍只是独立格式说明。
 

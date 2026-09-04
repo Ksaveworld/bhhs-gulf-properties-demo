@@ -159,5 +159,14 @@ test('a suggested target lacking area basis is reported as pending rather than a
   assert.ok(report.cases[0].missing_fields.includes('area_basis'));
   assert.equal(report.cases[0].target_is_candidate, false);
   assert.equal(report.cases[0].assessment.status, 'review');
-  assert.ok(report.cases[0].assessment.unknowns.some(message => message.includes('面积口径待确认')));
+  assert.ok(report.cases[0].assessment.unknowns.some(message => message.includes('Area basis needs confirmation')));
+});
+
+test('case comparison reports missing basis for a maximum-only size requirement', () => {
+  const input = structuredClone(fixture);
+  Object.assign(input.client_requirements[0], { area_min: null, area_max: 1500, area_basis: null, area_unit: 'sqft', hard_constraints: null });
+  const report = compareReferences(validateDataset(input));
+  const requirement = report.requirements.find(row => row.requirement_id === input.client_requirements[0].requirement_id);
+  assert.ok(requirement.missing_fields.includes('area_basis'));
+  assert.equal(requirement.candidates.length, 0);
 });

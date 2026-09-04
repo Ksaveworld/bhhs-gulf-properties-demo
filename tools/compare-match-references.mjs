@@ -15,8 +15,8 @@ export function compareReferences(dataset) {
     const text = requirementTextReview(requirement);
     const candidates = filterListings(listings, requirementsToFilters(requirement)).map(row => row.listing_id);
     const missing = [
-      ...(requirement.area_min !== null && area.status !== 'known' ? ['area_basis'] : []),
-      ...(requirement.area_min !== null && !requirement.area_unit ? ['area_unit'] : []),
+      ...((requirement.area_min !== null || requirement.area_max != null) && area.status !== 'known' ? ['area_basis'] : []),
+      ...((requirement.area_min !== null || requirement.area_max != null) && !requirement.area_unit ? ['area_unit'] : []),
       ...(!requirement.currency ? ['currency'] : []),
       ...(requirement.budget_min === null && requirement.budget_max === null ? ['budget_min/budget_max'] : []),
       ...(!requirement.purchase_by ? ['purchase_by'] : []), ...(!requirement.move_in_by ? ['move_in_by'] : []),

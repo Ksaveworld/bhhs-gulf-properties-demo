@@ -209,3 +209,6 @@
 | `reference_evidence` | 参考答案依据 | text | 必填 | 引用客户原文、房源/交易字段及产品规则，不填“AI 认为”作为唯一依据。  |
 | `data_kind` | 数据性质 | enum | 必填 | 任一关联对象为演示，则案例也为 demo。 可选：real_public / real_authorized / demo |
 | `notes` | 备注 | text | 选填 | 尚未确认的规则和例外情况。  |
+
+## v1.2.0：客户面积范围
+依据 V2 改版，增加可选英文 key area_max（非负 number / null）。上下限共用 area_unit 与 area_basis，min 不得大于 max；旧输入省略新列仍兼容。两个方向均据同一面积范围匹配。不存在上限、缺失口径或冲突时不编造补齐。v1.2.0 空白 CSV/schema/字典保存在 data/templates/v1.2.0；原 Excel 及历史 v1.0/v1.1 不修改。本轮改动已记录在 iteration-04-v2-checklist.md。

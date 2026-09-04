@@ -94,6 +94,8 @@ export interface ClientRequirement extends SourceRecord {
   property_types: string[] | null;
   bedrooms_min: number | null;
   area_min: number | null;
+  /** Optional v1.2 ceiling, expressed using the same area unit and basis as area_min. */
+  area_max?: number | null;
   area_unit: AreaUnit | null;
   area_basis?: AreaBasis | null;
   purchase_purpose: 'self_use' | 'investment' | 'mixed' | 'unknown';

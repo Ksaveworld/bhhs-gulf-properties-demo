@@ -82,6 +82,8 @@ function validateConditions(table, row, issues) {
     if ((row.budget_min !== null || row.budget_max !== null) && !row.currency) issues.push('budget: currency required');
     if (row.budget_min !== null && row.budget_max !== null && row.budget_min > row.budget_max) issues.push('budget: minimum exceeds maximum');
     if (row.area_min !== null && !row.area_unit) issues.push('area_min: unit required');
+    if (row.area_max != null && !row.area_unit) issues.push('area_max: unit required');
+    if (row.area_min != null && row.area_max != null && row.area_min > row.area_max) issues.push('area: minimum exceeds maximum');
     const types = SCHEMA.tables.find((t) => t.key === 'listing_snapshots').fields.find((f) => f.key === 'property_type').options;
     if (row.property_types?.some((value) => !types.includes(value))) issues.push('property_types: invalid property type');
   }

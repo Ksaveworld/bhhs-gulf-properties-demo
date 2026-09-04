@@ -34,3 +34,6 @@
 - 当前 `data/templates/` 顶层入口与 `data/templates/v1.1.0/` 提供相同的 v1.1.0 schema、五张空 CSV 和字段字典。
 - 原 v1.0.0 schema、五张空 CSV、字典及契约保存在 `data/templates/v1.0.0/`，原 v1 Excel 保持不变。
 - 本次新版 Excel 另存为 `outputs/area-basis-v1.1.0/BHHS_数据字段模板_v1.1.0.xlsx`。所有填写区为空，字典示例仍只是独立格式说明。
+
+## v1.2.0 增量
+当前 schema 已升级 v1.2.0，客户可选 area_max 为同口径面积上限；旧版本保留在 v1.0.0 / v1.1.0，新版空模板见 v1.2.0。当前填写事项由用户统一负责。

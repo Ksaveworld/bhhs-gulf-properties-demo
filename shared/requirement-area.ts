@@ -35,10 +35,10 @@ export function resolveRequirementArea(requirement: Pick<ClientRequirement, 'are
   };
 }
 
-export function requirementAreaWarnings(requirement: Pick<ClientRequirement, 'area_basis' | 'hard_constraints' | 'area_min' | 'area_unit'>): string[] {
+export function requirementAreaWarnings(requirement: Pick<ClientRequirement, 'area_basis' | 'hard_constraints' | 'area_min' | 'area_max' | 'area_unit'>): string[] {
   const resolution = resolveRequirementArea(requirement);
   return [
-    ...(requirement.area_min !== null || resolution.status === 'conflict' ? resolution.messages : []),
-    ...(requirement.area_min !== null && !requirement.area_unit ? ['Required area unit needs confirmation.'] : []),
+    ...(requirement.area_min != null || requirement.area_max != null || resolution.status === 'conflict' ? resolution.messages : []),
+    ...((requirement.area_min != null || requirement.area_max != null) && !requirement.area_unit ? ['Required area unit needs confirmation.'] : []),
   ];
 }

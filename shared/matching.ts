@@ -9,7 +9,7 @@ export interface Filters {
   currency: string;
   bedrooms_min: number | null;
   area_min: number | null;
-  /** Manual library search only; this is not a client-requirement or CSV field. */
+  /** Optional ceiling shared with v1.2 client requirements. */
   area_max?: number | null;
   area_unit: AreaUnit | null;
   area_basis: string;
@@ -159,7 +159,7 @@ export function requirementsToFilters(requirement: ClientRequirement): Filters {
     ...EMPTY_FILTERS, areas: [...(requirement.preferred_areas ?? [])],
     budget_min: requirement.budget_min, budget_max: requirement.budget_max,
     currency: requirement.currency ?? '', bedrooms_min: requirement.bedrooms_min,
-    area_min: requirement.area_min, area_unit: requirement.area_unit, area_basis: area.basis,
+    area_min: requirement.area_min, area_max: requirement.area_max ?? null, area_unit: requirement.area_unit, area_basis: area.basis,
     property_types: [...(requirement.property_types ?? [])], market_preference: requirement.market_preference,
     amenities: hard.amenities, move_in_by: requirement.move_in_by,
   };
@@ -220,13 +220,23 @@ export function evaluateMatch(listing: ListingSnapshot, requirement: ClientRequi
     } else { budget_fit = 'Within stated budget limits, excluding unspecified transaction costs.'; matched.push(budget_fit); }
     if (requirement.budget_constraint === 'unknown' && !unknowns.some((m) => m.includes('hard limit'))) unknowns.push('Budget flexibility has not been confirmed.');
   }
-  if (finite(requirement.area_min)) {
+  if (getAreaRangeError(requirement)) exclude('The stated size range is invalid; confirm both limits.');
+  if (finite(requirement.area_min) || finite(requirement.area_max)) {
     if (area.status !== 'known') unknowns.push(...area.messages);
     else if (!finite(listing.area_value) || !listing.area_unit || !listing.area_basis || listing.area_basis === 'unknown') unknowns.push('Listing area, unit or area basis is undisclosed.');
     else if (listing.area_basis !== area.basis) unknowns.push(`Area bases differ (${listing.area_basis} vs ${area.basis}); unit conversion cannot resolve this.`);
     else if (!requirement.area_unit) unknowns.push('Required area unit is missing.');
-    else if (convertArea(listing.area_value, listing.area_unit, requirement.area_unit) + 1e-8 >= requirement.area_min) matched.push(`Area meets ${requirement.area_min} ${requirement.area_unit} minimum on ${area.basis} basis.`);
-    else exclude(`Area is below ${requirement.area_min} ${requirement.area_unit} minimum on ${area.basis} basis.`);
+    else {
+      const size = convertArea(listing.area_value, listing.area_unit, requirement.area_unit);
+      if (finite(requirement.area_min)) {
+        if (size + 1e-8 >= requirement.area_min) matched.push(`Area meets ${requirement.area_min} ${requirement.area_unit} minimum on ${area.basis} basis.`);
+        else exclude(`Area is below ${requirement.area_min} ${requirement.area_unit} minimum on ${area.basis} basis.`);
+      }
+      if (finite(requirement.area_max)) {
+        if (size - 1e-8 <= requirement.area_max) matched.push(`Area meets ${requirement.area_max} ${requirement.area_unit} maximum on ${area.basis} basis.`);
+        else exclude(`Area exceeds ${requirement.area_max} ${requirement.area_unit} maximum on ${area.basis} basis.`);
+      }
+    }
   }
   else if (area.status === 'conflict') unknowns.push(...area.messages);
   if (requirement.market_preference === 'ready' || requirement.market_preference === 'off_plan') {

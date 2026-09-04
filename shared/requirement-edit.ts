@@ -9,7 +9,7 @@ export function applyRequirementFields(draft: ClientRequirement, filters: Filter
     ...draft, budget_min: filters.budget_min, budget_max: filters.budget_max,
     currency: (filters.currency || null) as Currency | null,
     preferred_areas: [...filters.areas], property_types: [...filters.property_types],
-    bedrooms_min: filters.bedrooms_min, area_min: filters.area_min, area_unit: filters.area_unit,
+    bedrooms_min: filters.bedrooms_min, area_min: filters.area_min, area_max: filters.area_max ?? null, area_unit: filters.area_unit,
     area_basis: (filters.area_basis || null) as AreaBasis | null,
     market_preference: (filters.market_preference || 'unknown') as ClientRequirement['market_preference'],
     move_in_by: filters.move_in_by,

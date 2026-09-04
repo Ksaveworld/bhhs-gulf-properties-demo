@@ -1,0 +1,57 @@
+.home-task-workspace { max-width: 980px; margin: 0 auto; padding: 12px 0 36px; }
+.home-task-heading { margin: 0 0 24px; }
+.home-task-heading h1 { margin: 10px 0 12px; font-family: Georgia, 'Times New Roman', serif; font-size: clamp(29px, 3vw, 42px); font-weight: 400; color: var(--wine); }
+.home-task-heading p { margin: 0; max-width: 670px; color: var(--muted); font-size: 14px; line-height: 1.65; }
+.home-task-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.home-task-buttons .ant-btn { height: 38px; border-radius: 20px; color: #67606a; }
+.home-task-buttons .ant-btn.selected { background: #f4eaf0; border-color: #b68bA4; color: var(--wine); }
+.home-task-composer { display: flex; align-items: flex-start; gap: 10px; padding: 16px; border: 1px solid #d9ced5; border-radius: 12px; background: white; box-shadow: 0 5px 20px #55223f05; }
+.home-task-composer:focus-within { border-color: var(--wine); }
+.home-task-composer .home-task-tag { flex-shrink: 0; padding: 4px 8px; margin: 3px 0 0; background: #f4eaf0; color: var(--wine); border: 0; border-radius: 4px; }
+.home-task-composer textarea.ant-input { border: 0; box-shadow: none; resize: none; line-height: 1.7; padding: 4px 0; background: transparent; }
+.home-task-composer > .ant-btn { flex-shrink: 0; width: 36px; height: 36px; }
+.home-task-example { color: #7a7d86; font-size: 12px; margin: 11px 2px 8px; line-height: 1.6; }
+.home-rules-label { color: #87818a; font-size: 11px; }
+.home-task-workspace > .ant-alert { margin-top: 16px; }
+.home-task-review { padding: 25px 28px 0; margin-top: 24px; border: 1px solid var(--line); border-radius: 10px; background: white; }
+.home-review-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.home-review-title h2 { font-size: 19px; margin: 0; font-weight: 600; }
+.home-missing-count { margin: 12px 0 22px; font-size: 12px; }
+.home-missing-count.incomplete { color: #a23536; }
+.home-missing-count.complete { color: var(--green); }
+.home-core-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px 22px; }
+.home-field { min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+.home-field.full { grid-column: 1 / -1; }
+.home-field-label { font-size: 12px; color: #535660; font-weight: 600; }
+.home-field-hint { font-size: 10px; color: #85818a; }
+.required-star { color: #a23536; }
+.home-field > .ant-select, .home-field > .ant-input-number, .home-field > .ant-input, .home-field > .date-input { width: 100%; min-height: 36px; }
+.home-field .ant-select-selector { min-height: 36px; }
+.home-range { display: flex; align-items: center; width: 100%; height: 36px; border: 1px solid #d9d9d9; border-radius: 6px; overflow: hidden; background: white; }
+.home-range.invalid { border-color: #ff4d4f; }
+.home-range:focus-within { border-color: var(--wine); box-shadow: 0 0 0 2px #55223f10; }
+.home-range .ant-input-number { flex: 1; min-width: 0; width: 0; border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+.home-range .ant-input-number-input { height: 34px; }
+.home-range > span { padding: 0 3px; color: #aaa4ab; }
+.home-optional-fields { margin-top: 22px; border-top: 1px solid #efedf0; }
+.home-optional-fields > summary { cursor: pointer; padding: 17px 0; color: #645264; font-size: 12px; font-weight: 600; }
+.home-optional-fields > summary > span { font-weight: 400; color: #98909a; margin-left: 6px; }
+.home-clarifications { margin-top: 22px; padding: 12px 15px; background: #fdf8f0; border-left: 2px solid #c49455; border-radius: 3px; }
+.home-clarifications summary { color: #8d642f; font-size: 12px; font-weight: 600; cursor: pointer; }
+.home-clarifications summary span { margin-left: 4px; font-weight: 400; }
+.home-clarifications ul { font-size: 12px; line-height: 1.65; color: #8b7358; padding-left: 17px; margin-bottom: 0; }
+.home-original-notes { margin: 16px 0; font-size: 12px; color: #7b7680; }
+.home-original-notes summary { cursor: pointer; }
+.home-original-notes p { white-space: pre-wrap; line-height: 1.7; }
+.home-task-review > .ant-alert { margin-bottom: 12px; }
+.home-continue { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 20px 0; border-top: 1px solid var(--line); }
+.home-continue > span { font-size: 11px; color: var(--muted); }
+.home-continue .ant-btn { min-width: 128px; height: 38px; flex-shrink: 0; }
+@media (max-width: 800px) {
+  .home-core-fields { grid-template-columns: minmax(0, 1fr); }
+  .home-task-composer { flex-wrap: wrap; }
+  .home-task-composer .home-task-tag { margin-right: calc(100% - 200px); }
+  .home-task-composer textarea.ant-input { flex: 1; width: 0; }
+  .home-task-review { padding: 18px 18px 0; }
+  .home-continue { flex-wrap: wrap; }
+}

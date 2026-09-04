@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Alert, Button, Drawer, Empty, Tabs, Tag } from 'antd';
 import type { ClientRequirement, ListingSnapshot } from '../../../../shared/types';
 import type { LocalRequirementCopy } from '../../../../shared/local-requirements';
-import { clientRequirementHistory } from '../../../../shared/client-requirement-history';
+import { clientRequirementHistory, companyAssignment } from '../../../../shared/client-requirement-history';
 import { CLIENT_VISIBILITY_LABELS, type ClientVisibility } from '../../../../shared/client-directory';
 import { evaluateMatch, latestListings, requirementTextReview } from '../../../../shared/matching';
 import { requirementAreaWarnings, resolveRequirementArea } from '../../../../shared/requirement-area';
@@ -21,6 +21,7 @@ export interface ClientDetailProps {
   originals: ClientRequirement[];
   copies: LocalRequirementCopy[];
   listings: ListingSnapshot[];
+  viewingListings?: ListingSnapshot[];
   salesId: string | null;
   storageScope: string | null;
   onClose: () => void;
@@ -55,7 +56,7 @@ function CurrentNeed({ requirement }: { requirement: ClientRequirement }) {
 }
 
 function ClientDetailWorkspace(props: ClientDetailProps) {
-  const { clientId, requirements, originals, copies, listings, salesId, storageScope, onClose, onOpenProperty, onEdit, onExport, renderLocalControls, onUseFeedback, getVisibility } = props;
+  const { clientId, requirements, originals, copies, listings, viewingListings = listings, salesId, storageScope, onClose, onOpenProperty, onEdit, onExport, renderLocalControls, onUseFeedback, getVisibility } = props;
   const plans = useMemo(() => requirements.filter(row => row.client_id === clientId).sort((a, b) => {
     const time = (row: ClientRequirement) => Date.parse(copies.find(copy => copy.requirement.requirement_id === row.requirement_id)?.saved_at ?? row.captured_at);
     return time(b) - time(a) || b.requirement_id.localeCompare(a.requirement_id);
@@ -63,18 +64,18 @@ function ClientDetailWorkspace(props: ClientDetailProps) {
   const [planId, setPlanId] = useState('');
   const requirement = plans.find(row => row.requirement_id === planId) ?? plans[0];
   const visibility = requirement ? getVisibility?.(requirement.requirement_id) ?? (originals.some(row => row.client_id === clientId) ? 'company' : salesId ? 'private' : 'legacy') : 'company';
-  const access = useMemo<ViewingAccess>(() => ({ scope: storageScope, salesId, requirements, listings }), [storageScope, salesId, requirements, listings]);
+  const access = useMemo<ViewingAccess>(() => ({ scope: storageScope, salesId, requirements, listings: viewingListings }), [storageScope, salesId, requirements, viewingListings]);
   const [stored, setStored] = useState<StoredViewingRecords | null>(null);
   const [storageError, setStorageError] = useState('');
   const [saveError, setSaveError] = useState('');
   const [saveStatus, setSaveStatus] = useState('');
-  const [listingId, setListingId] = useState(listings[0]?.listing_id ?? '');
+  const [listingId, setListingId] = useState(viewingListings[0]?.listing_id ?? '');
   const [viewedAt, setViewedAt] = useState(localDate);
   const [feedback, setFeedback] = useState('');
   const [signal, setSignal] = useState<ViewingFeedbackSignal>('not_recorded');
   const [tagDimensions, setTagDimensions] = useState<ViewingDimension[]>([]);
   const [writing, setWriting] = useState(false);
-  const selectedListing = listings.find(row => row.listing_id === listingId) ?? listings[0];
+  const selectedListing = viewingListings.find(row => row.listing_id === listingId) ?? viewingListings[0];
   const dimensions = selectedListing ? listingViewingDimensions(selectedListing) : null;
   const records = (stored?.records ?? []).filter(row => row.client_id === clientId);
   const canWrite = !!salesId && !!storageScope && !!stored && !storageError;
@@ -120,6 +121,7 @@ function ClientDetailWorkspace(props: ClientDetailProps) {
   }
 
   const recommendationTab = requirement ? <div className="client-detail-recommendations">
+    {visibility === 'company' && companyAssignment(originals, requirement.client_id).needs_confirmation && <Alert type="warning" message="Company assignment needs confirmation" description="Imported records name different sales owners. Confirm the assignment before updating the source data." />}
     <section className="client-detail-current" data-requirement-id={requirement.requirement_id}>
       <div className="client-detail-section-heading"><h3>Current Needs</h3><Button disabled={!salesId} onClick={() => onEdit(requirement)}>Edit Current Needs</Button></div>
       {plans.length > 1 && <label className="client-detail-plan"><span>Independent plan</span><select aria-label="Independent client plan" value={requirement.requirement_id} onChange={event => setPlanId(event.target.value)}>{plans.map((row, index) => <option key={row.requirement_id} value={row.requirement_id}>{row.preferred_areas?.join(', ') || 'Location to confirm'} · {clientBudgetLabel(row)} · Plan {index + 1}</option>)}</select></label>}
@@ -147,12 +149,12 @@ function ClientDetailWorkspace(props: ClientDetailProps) {
     {saveStatus && <Alert type="success" data-testid="viewing-save-status" message={saveStatus} />}
     <div className="client-detail-section-heading"><h3>Viewing History</h3><span data-testid="client-viewing-count">{records.length} recorded viewings</span></div>
     {!records.length ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No viewing history recorded for this client." /> : <ol className="client-detail-viewing-timeline" aria-label="Client viewing timeline">{sortViewingRecords(records).map(record => {
-      const listing = listings.find(row => row.listing_id === record.listing_id);
+      const listing = viewingListings.find(row => row.listing_id === record.listing_id);
       const reviewFeedback = [record.feedback, ...record.preference_tags.map(tag => `Explicit preference: ${pretty(tag.dimension)} — ${pretty(tag.value)}`)].filter(Boolean).join('\n');
       return <li key={record.record_id} data-viewing-id={record.record_id}><div><time dateTime={record.viewed_at}>{dateLabel(record.viewed_at)}</time> <Tag>{record.source_kind === 'fictional_example' ? 'Fictional example' : record.data_kind === 'demo' ? 'Demo record' : 'Sales recorded'}</Tag></div><Button type="link" onClick={() => onOpenProperty(record.listing_id)}>{listing ? propertyDisplayName(listing) : 'Viewed property'}</Button><p><strong>Feedback:</strong> {pretty(record.feedback_signal)}</p><p>{record.feedback || 'No written feedback.'}</p>{record.preference_tags.length > 0 && <p><strong>Stated preferences:</strong> {record.preference_tags.map(tag => `${pretty(tag.dimension)}: ${pretty(tag.value)}`).join(' · ')}</p>}{onUseFeedback && requirement && reviewFeedback && <Button size="small" onClick={() => onUseFeedback(requirement, reviewFeedback)}>Review as Preference Update</Button>}<small>Recorded by {record.sales_id} · Saved in this browser</small></li>;
     })}</ol>}
     {salesId && requirement && <details className="client-detail-viewing-entry"><summary>Add a Viewing Record</summary><form className="client-detail-viewing-form" onSubmit={saveViewing}>
-      <label><span>Viewed Property</span><select aria-label="Viewed property" value={selectedListing?.listing_id ?? ''} onChange={event => { setListingId(event.target.value); setTagDimensions([]); }} required>{listings.map(listing => <option key={listing.listing_id} value={listing.listing_id}>{propertyDisplayName(listing)} · {listing.area_name}</option>)}</select></label>
+      <label><span>Viewed Property</span><select aria-label="Viewed property" value={selectedListing?.listing_id ?? ''} onChange={event => { setListingId(event.target.value); setTagDimensions([]); }} required>{viewingListings.map(listing => <option key={listing.listing_id} value={listing.listing_id}>{propertyDisplayName(listing)} · {listing.area_name}{listing.currency && listing.currency !== 'AED' ? ` · ${listing.currency}` : ''}</option>)}</select></label>
       <label><span>Viewed At (local time)</span><input aria-label="Viewed at" type="datetime-local" value={viewedAt} required onChange={event => setViewedAt(event.target.value)} /></label>
       <label><span>Visit Feedback</span><select aria-label="Visit feedback signal" value={signal} onChange={event => setSignal(event.target.value as ViewingFeedbackSignal)}>{(['not_recorded', 'positive', 'mixed', 'negative'] as const).map(value => <option key={value} value={value}>{pretty(value)}</option>)}</select></label>
       <label className="client-detail-wide"><span>Viewing Feedback</span><textarea aria-label="Viewing feedback" rows={3} maxLength={4000} value={feedback} onChange={event => setFeedback(event.target.value)} placeholder="Record the client's comments." /></label>

@@ -7,7 +7,23 @@ import { getPriceEvidence } from '../shared/pricing';
 import { buildClientGroups } from '../shared/client-priorities';
 import { currentClientRequirements } from '../shared/client-requirement-history';
 import { evaluateMatch } from '../shared/matching';
+import type { ViewingRecord } from '../shared/viewing-records';
 const data=JSON.parse(readFileSync(new URL('../data/demo/dataset.json',import.meta.url),'utf8')) as Dataset;
+test('client viewing history retains non-AED properties independently of the recommendation scope', () => {
+  const original = data.client_requirements[0];
+  const viewed = data.listing_snapshots.find(row => row.currency === 'USD')!;
+  const record: ViewingRecord = {
+    record_id: 'USD-VIEWING', client_id: original.client_id, listing_id: viewed.listing_id,
+    sales_id: 'QA', viewed_at: '2026-09-03T09:00:00.000Z', feedback: 'Original USD viewing retained.',
+    feedback_signal: 'mixed', preference_tags: [], source_kind: 'sales_entered', source_ref: 'browser:qa',
+    data_kind: 'demo', created_at: '2026-09-03T09:00:00.000Z',
+  };
+  const aed = data.listing_snapshots.filter(row => row.currency === 'AED');
+  const report = clientSalesReport(original.client_id, [original], [original], [], aed, [record], 'Company', undefined, data.listing_snapshots);
+  assert.ok(report.sections.find(s => s.heading === 'Viewing History')!.lines[0].includes(viewed.building_name || viewed.title));
+  assert.ok(!report.sections.filter(s => ['Best Matches', 'Worth Considering'].includes(s.heading)).flatMap(s => s.lines).join('\n').includes(viewed.building_name || viewed.title));
+  assert.doesNotThrow(() => clientSalesReport(original.client_id, [original], [original], [], aed, [record], 'Company'));
+});
 test('property brief uses eligible own history before comparables, with original values and no excluded clients',()=>{
   const l=data.listing_snapshots[0],r=propertySalesReport(l,data,data.client_requirements),e=getPriceEvidence(l,data);
   assert.match(r.disclosure,/DEMONSTRATION/);

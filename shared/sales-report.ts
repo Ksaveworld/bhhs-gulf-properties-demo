@@ -65,7 +65,7 @@ export function propertySalesReport(listing: ListingSnapshot, dataset: Dataset, 
     }
     return { title: propertyDisplayName(listing), subtitle: 'Property sales brief', disclosure: notice(listing.data_kind === 'demo' || requirements.some(r => r.data_kind === 'demo')), sections, filename: filename('Property', listing.listing_id) };
 }
-export function clientSalesReport(clientId: string, requirements: ClientRequirement[], originals: ClientRequirement[], copies: LocalRequirementCopy[], listings: ListingSnapshot[], viewings: ViewingRecord[], ownership: string, selectedRequirementId?: string): SalesReport {
+export function clientSalesReport(clientId: string, requirements: ClientRequirement[], originals: ClientRequirement[], copies: LocalRequirementCopy[], listings: ListingSnapshot[], viewings: ViewingRecord[], ownership: string, selectedRequirementId?: string, viewingListings: ListingSnapshot[] = listings): SalesReport {
     const plans = requirements.filter(req => req.client_id === clientId && (!selectedRequirementId || req.requirement_id === selectedRequirementId));
     if (!plans.length)
         throw new Error('This client is not available in the current sales view.');
@@ -78,6 +78,9 @@ export function clientSalesReport(clientId: string, requirements: ClientRequirem
     const matches = listings.map(listing => ({ listing, assessments: plans.map(req => evaluateMatch(listing, req)) })).map(row => ({ ...row, match: row.assessments.find(m => m.status === 'match') || row.assessments.find(m => m.status === 'review') }));
     for (const status of ['match', 'review'] as const)
         sections.push({ heading: status === 'match' ? 'Best Matches' : 'Worth Considering', lines: matches.filter(row => row.match?.status === status).map(({ listing, match }) => `${propertyDisplayName(listing)} · ${amount(listing.asking_price, listing.currency)}\nMeets: ${match!.matched.map(clean).join('; ')}\nTo clarify: ${[...match!.conflicts, ...match!.unknowns].map(clean).join('; ') || 'None recorded'}\nNext action: ${match!.next_action}`) });
-    sections.push({ heading: 'Viewing History', lines: viewings.filter(v => v.client_id === clientId).map(v => `${v.viewed_at} · ${propertyDisplayName(listings.find(l => l.listing_id === v.listing_id)!)}\nFeedback: ${display(v.feedback_signal)} · ${v.feedback || 'No comments'}\nStated preferences: ${v.preference_tags.map(t => t.value).join(', ') || 'None recorded'}${v.source_kind === 'fictional_example' ? '\nFictional viewing example.' : ''}`) });
+    sections.push({ heading: 'Viewing History', lines: viewings.filter(v => v.client_id === clientId).map(v => {
+        const viewed = viewingListings.find(l => l.listing_id === v.listing_id);
+        return `${v.viewed_at} · ${viewed ? propertyDisplayName(viewed) : 'Property no longer available in this dataset'}\nFeedback: ${display(v.feedback_signal)} · ${v.feedback || 'No comments'}\nStated preferences: ${v.preference_tags.map(t => t.value).join(', ') || 'None recorded'}${v.source_kind === 'fictional_example' ? '\nFictional viewing example.' : ''}`;
+    }) });
     return { title: plans[0].client_alias, subtitle: 'Client sales brief', disclosure: notice(plans.some(r => r.data_kind === 'demo') || listings.some(l => l.data_kind === 'demo')), sections, filename: filename('Client', clientId) };
 }

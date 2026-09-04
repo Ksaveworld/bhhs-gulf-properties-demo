@@ -56,3 +56,38 @@ test('a legacy company review remains Unassigned and exports source ownership wi
   expect(legacy.requirement.sales_owner).toBe('LEGACY-REGRESSION-SALES');
   await testInfo.attach('legacy-company-owner-word', { path, contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
 });
+
+test('conflicting imported sales assignments stay explicit in client details and the downloaded Word report', async ({ page, request, context }, testInfo) => {
+  const source = await (await request.get('/api/dataset')).json() as Dataset;
+  const originals = source.client_requirements.filter(row => row.client_id === 'DEMO-C-001').slice(0, 2)
+    .map((row, index) => ({ ...row, sales_owner: index === 0 ? 'SOURCE-SALES-A' : 'SOURCE-SALES-B' }));
+  expect(originals).toHaveLength(2);
+  const dataset: Dataset = { ...source, client_requirements: originals, match_reference: [], meta: { ...source.meta, storage_namespace: 'synthetic-v2-conflicting-owner-qa' } };
+  await context.route('**/api/dataset', route => route.fulfill({ json: dataset }));
+  await page.goto('/'); await ensureSalesIdentity(page); await page.goto('/#/clients');
+  const before = await page.evaluate(() => Object.keys(localStorage).filter(key => key.startsWith('bhhs:local-requirements:')).map(key => [key, localStorage.getItem(key)]));
+  const directory = page.getByRole('region', { name: 'Client directory', exact: true });
+  await directory.locator('article[data-client-id="DEMO-C-001"]').getByRole('button', { name: /View Client Details/ }).click();
+  const drawer = page.locator('.client-detail-drawer .ant-drawer-content');
+  await expect(drawer.getByText('Company assignment needs confirmation', { exact: true })).toBeVisible();
+  await drawer.getByRole('button', { name: 'Export Report', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Export report', exact: true });
+  await dialog.getByRole('radio', { name: 'Word', exact: true }).check();
+  const pending = page.waitForEvent('download');
+  await dialog.getByRole('button', { name: 'Download report', exact: true }).click();
+  const download = await pending;
+  expect(await download.failure()).toBeNull();
+  const path = testInfo.outputPath('conflicting-company-owner.docx');
+  await download.saveAs(path);
+  const zip = await JSZip.loadAsync(await readFile(path));
+  const xml = await zip.file('word/document.xml')!.async('string');
+  const text = xml.replace(/<\/w:p>/g, '\n').replace(/<[^>]+>/g, '').replaceAll('&amp;', '&');
+  expect(text).toContain('Ownership: Company · Assignment needs confirmation');
+  expect(text).not.toContain('Ownership: Company · SOURCE-SALES-A');
+  expect(text).not.toContain('Ownership: Company · SOURCE-SALES-B');
+  expect(text).not.toContain('Ownership: Company · LEGACY-REGRESSION-SALES');
+  expect(text).toContain('DEMONSTRATION ONLY');
+  expect(await page.evaluate(() => Object.keys(localStorage).filter(key => key.startsWith('bhhs:local-requirements:')).map(key => [key, localStorage.getItem(key)]))).toEqual(before);
+  expect(originals.map(row => row.sales_owner)).toEqual(['SOURCE-SALES-A', 'SOURCE-SALES-B']);
+  await testInfo.attach('conflicting-company-owner-word', { path, contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+});

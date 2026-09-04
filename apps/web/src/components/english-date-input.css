@@ -1,0 +1,6 @@
+.english-date-input { display: flex; flex-direction: column; gap: 5px; width: 100%; min-width: 0; }
+.english-date-input .ant-input-affix-wrapper { min-height: 36px; }
+.english-date-input .ant-input { font-variant-numeric: tabular-nums; }
+.english-date-hint, .english-date-error { font-size: 10px; line-height: 1.5; }
+.english-date-hint { color: #85818a; }
+.english-date-error { color: #a23536; }

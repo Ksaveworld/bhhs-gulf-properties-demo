@@ -5,12 +5,14 @@ import { HOME_TASKS, hasClientSearchCondition, homePropertyFilters, homeRequirem
 import { EMPTY_CLIENT_DIRECTORY_FILTERS, clientDirectoryBudgetError, type ClientDirectoryFilters } from '../../../../shared/client-directory';
 import type { ClientRequirement } from '../../../../shared/types';
 import type { Filters } from '../../../../shared/matching';
+import { EnglishDateInput } from './EnglishDateInput';
 import '../home-workspace.css';
 
 type Props = {
   areas: string[];
   canSave: boolean;
   initialTask?: HomeTask;
+  embedded?: boolean;
   onSignIn: () => void;
   onFindProperties: (filters: Filters, requirement: ClientRequirement) => void;
   onFindClients: (filters: ClientDirectoryFilters) => void;
@@ -53,8 +55,8 @@ export function CoreRequirementFields({ value, onChange, areas, task, showMissin
       <Field name={sizeLabel}><NumberRange label="Size Range" min={value.area_min} max={value.area_max ?? null} onChange={(area_min, area_max) => onChange({ ...value, area_min, area_max })} /></Field>
       <Field name={task === 'create' ? 'Completion Preference' : 'Completion Status'}><Select aria-label="Completion Preference" options={completionOptions} value={value.market_preference === 'unknown' ? 'either' : value.market_preference} onChange={next => update('market_preference', next)} /></Field>
       {task === 'create' && <Field name="Purchase Purpose"><Select aria-label="Purchase Purpose" value={value.purchase_purpose} onChange={next => update('purchase_purpose', next)} options={[{ value: 'unknown', label: 'Not specified' }, { value: 'self_use', label: 'Own use' }, { value: 'investment', label: 'Investment' }, { value: 'mixed', label: 'Own use and investment' }]} /></Field>}
-      {task === 'create' && <Field name="Purchase By"><input className="date-input" aria-label="Purchase By" type="date" value={value.purchase_by ?? ''} onChange={event => update('purchase_by', event.target.value || null)} /></Field>}
-      <Field name="Available / Move-in By"><input className="date-input" aria-label="Available / Move-in By" type="date" value={value.move_in_by ?? ''} onChange={event => update('move_in_by', event.target.value || null)} /></Field>
+      {task === 'create' && <Field name="Purchase By"><EnglishDateInput label="Purchase By" value={value.purchase_by ?? ''} onChange={next => update('purchase_by', next || null)} /></Field>}
+      <Field name="Available / Move-in By"><EnglishDateInput label="Available / Move-in By" value={value.move_in_by ?? ''} onChange={next => update('move_in_by', next || null)} /></Field>
       <Field name="Required Features" full><Input.TextArea aria-label="Required Features" autoSize={{ minRows: 1, maxRows: 4 }} placeholder="Must-have features and other hard conditions" value={value.hard_constraints ?? ''} onChange={event => update('hard_constraints', event.target.value || null)} /></Field>
       <Field name={task === 'create' ? 'Preferences / Notes' : 'Notes'} full><Input.TextArea aria-label="Preferences / Notes" autoSize={{ minRows: 1, maxRows: 4 }} value={value.soft_preferences ?? ''} onChange={event => update('soft_preferences', event.target.value || null)} /></Field>
       {task === 'create' && <Field name="Questions to Clarify" full><Input.TextArea aria-label="Questions to Clarify" autoSize={{ minRows: 1, maxRows: 5 }} value={value.missing_questions ?? ''} onChange={event => update('missing_questions', event.target.value || null)} /></Field>}
@@ -62,9 +64,12 @@ export function CoreRequirementFields({ value, onChange, areas, task, showMissin
   </>;
 }
 
-export function HomeWorkspace({ areas, canSave, initialTask = 'property', onSignIn, onFindProperties, onFindClients, onCreateClient }: Props) {
-  const [task, setTask] = useState<HomeTask>(initialTask);
-  const [text, setText] = useState('');
+export function HomeWorkspace({ areas, canSave, initialTask = 'property', embedded = false, onSignIn, onFindProperties, onFindClients, onCreateClient }: Props) {
+  const startingTask = embedded ? 'create' : initialTask;
+  const [task, setTask] = useState<HomeTask>(startingTask);
+  const [taskNotes, setTaskNotes] = useState<Record<HomeTask, string>>({ property: '', client: '', create: '' });
+  const text = taskNotes[task];
+  const setText = (value: string) => setTaskNotes(previous => ({ ...previous, [task]: value }));
   const [draft, setDraft] = useState<HomeRequirement | null>(null);
   const [clientFilters, setClientFilters] = useState<ClientDirectoryFilters | null>(null);
   const [clientWarnings, setClientWarnings] = useState<string[]>([]);
@@ -72,8 +77,8 @@ export function HomeWorkspace({ areas, canSave, initialTask = 'property', onSign
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [confirmOpen, setConfirmOpen] = useState(false);
-  useEffect(() => { setTask(initialTask); setText(''); setDraft(null); setClientFilters(null); setConfirmOpen(false); setError(''); }, [initialTask]);
-  function changeTask(next: HomeTask) { setTask(next); setText(''); setDraft(null); setClientFilters(null); setClientWarnings([]); setError(''); setConfirmOpen(false); }
+  useEffect(() => { setTask(startingTask); setDraft(null); setClientFilters(null); setClientWarnings([]); setConfirmOpen(false); setError(''); }, [startingTask]);
+  function changeTask(next: HomeTask) { if (next === task) return; setTask(next); setDraft(null); setClientFilters(null); setClientWarnings([]); setError(''); setConfirmOpen(false); }
   async function prepare() {
     if (!text.trim() || busy) return;
     setBusy(true); setError('');
@@ -104,12 +109,10 @@ export function HomeWorkspace({ areas, canSave, initialTask = 'property', onSign
     finally { setSaving(false); }
   }
   const updateClient = (next: Partial<ClientDirectoryFilters>) => setClientFilters({ ...(clientFilters ?? EMPTY_CLIENT_DIRECTORY_FILTERS), ...next });
-  return <section className="home-task-workspace" aria-label="Sales task workspace">
-    <div className="home-task-heading"><span className="eyebrow">SALES WORKSPACE</span><h1>Your client. Their next home.</h1><p>{HOME_TASKS[task].description}</p></div>
-    <div className="home-task-buttons" role="group" aria-label="Choose a task">{(['property', 'client', 'create'] as const).map(mode => <Button key={mode} aria-label={HOME_TASKS[mode].label} aria-pressed={task === mode} className={task === mode ? 'selected' : ''} icon={icons[mode]} onClick={() => changeTask(mode)} disabled={busy || saving}>{HOME_TASKS[mode].label}</Button>)}</div>
-    <div className="home-task-composer"><Tag className="home-task-tag" data-testid="selected-home-task">{HOME_TASKS[task].label}</Tag><Input.TextArea aria-label="Sales conversation / notes" placeholder="Describe what you need…" autoSize={{ minRows: 2, maxRows: 5 }} value={text} disabled={busy || saving} onChange={event => { setText(event.target.value); setDraft(null); setClientFilters(null); setError(''); }} onPressEnter={event => { if ((event.ctrlKey || event.metaKey) && !event.nativeEvent.isComposing) { event.preventDefault(); void prepare(); } }} /><Button type="primary" aria-label="Send request" title="Send request (Ctrl + Enter)" icon={<SendOutlined />} loading={busy} disabled={!text.trim() || saving} onClick={prepare} /></div>
-    <p className="home-task-example" data-testid="home-task-example">Example: {HOME_TASKS[task].example}</p>
-    <span className="home-rules-label">Rule demo · Review the suggested details.</span>
+  return <section className={`home-task-workspace${embedded ? ' embedded' : ''}`} aria-label="Sales task workspace">
+    <div className="home-task-heading">{embedded ? <h2>Create a Private Client</h2> : <><span className="eyebrow">SALES WORKSPACE</span><h1>Your client. Their next home.</h1></>}<p>{HOME_TASKS[task].description}</p></div>
+    {!embedded && <div className="home-task-buttons" role="group" aria-label="Choose a task">{(['property', 'client', 'create'] as const).map(mode => <Button key={mode} aria-label={HOME_TASKS[mode].label} aria-pressed={task === mode} className={task === mode ? 'selected' : ''} icon={icons[mode]} onClick={() => changeTask(mode)} disabled={busy || saving}>{HOME_TASKS[mode].label}</Button>)}</div>}
+    <div className="home-task-composer"><Tag className="home-task-tag" data-testid="selected-home-task">{HOME_TASKS[task].label}</Tag><Input.TextArea aria-label="Sales conversation / notes" placeholder={HOME_TASKS[task].example} autoSize={{ minRows: 2, maxRows: 5 }} value={text} disabled={busy || saving} onChange={event => { setText(event.target.value); setDraft(null); setClientFilters(null); setError(''); }} onPressEnter={event => { if ((event.ctrlKey || event.metaKey) && !event.nativeEvent.isComposing) { event.preventDefault(); void prepare(); } }} /><Button type="primary" aria-label="Send request" title="Send request (Ctrl + Enter)" icon={<SendOutlined />} loading={busy} disabled={!text.trim() || saving} onClick={prepare} /></div>
     {error && !confirmOpen && <Alert type="error" showIcon message={error} />}
     {prepared && <section className="home-task-review" aria-label="Review task details">
       <div className="home-review-title"><h2>Review the details</h2><Tag>{task === 'create' ? 'Private client' : 'Search'}</Tag></div>

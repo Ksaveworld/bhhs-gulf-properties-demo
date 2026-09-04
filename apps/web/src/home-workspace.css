@@ -2,6 +2,8 @@
 .home-task-heading { margin: 0 0 24px; }
 .home-task-heading h1 { margin: 10px 0 12px; font-family: Georgia, 'Times New Roman', serif; font-size: clamp(29px, 3vw, 42px); font-weight: 400; color: var(--wine); }
 .home-task-heading p { margin: 0; max-width: 670px; color: var(--muted); font-size: 14px; line-height: 1.65; }
+.home-task-workspace.embedded { padding: 0 0 16px; }
+.home-task-workspace.embedded .home-task-heading h2 { margin: 0 0 10px; color: var(--wine); font-size: 23px; font-weight: 500; }
 .home-task-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
 .home-task-buttons .ant-btn { height: 38px; border-radius: 20px; color: #67606a; }
 .home-task-buttons .ant-btn.selected { background: #f4eaf0; border-color: #b68bA4; color: var(--wine); }
@@ -10,8 +12,6 @@
 .home-task-composer .home-task-tag { flex-shrink: 0; padding: 4px 8px; margin: 3px 0 0; background: #f4eaf0; color: var(--wine); border: 0; border-radius: 4px; }
 .home-task-composer textarea.ant-input { border: 0; box-shadow: none; resize: none; line-height: 1.7; padding: 4px 0; background: transparent; }
 .home-task-composer > .ant-btn { flex-shrink: 0; width: 36px; height: 36px; }
-.home-task-example { color: #7a7d86; font-size: 12px; margin: 11px 2px 8px; line-height: 1.6; }
-.home-rules-label { color: #87818a; font-size: 11px; }
 .home-task-workspace > .ant-alert { margin-top: 16px; }
 .home-task-review { padding: 25px 28px 0; margin-top: 24px; border: 1px solid var(--line); border-radius: 10px; background: white; }
 .home-review-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }

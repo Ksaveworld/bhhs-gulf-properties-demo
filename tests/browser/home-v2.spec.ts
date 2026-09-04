@@ -40,7 +40,7 @@ test('three task tags and examples switch; removed extraction buttons and unit s
   for (const name of ['Find a Property', 'Find a Client', 'Create a Private Client']) {
     await home(page).getByRole('button', { name, exact: true }).click();
     await expect(home(page).getByTestId('selected-home-task')).toHaveText(name);
-    examples.push(await home(page).getByTestId('home-task-example').innerText());
+    examples.push((await home(page).getByRole('textbox', { name: 'Sales conversation / notes', exact: true }).getAttribute('placeholder'))!);
   }
   expect(new Set(examples).size).toBe(3);
   await prepare(page, 'Client name: Synthetic Alex. Dubai Marina');

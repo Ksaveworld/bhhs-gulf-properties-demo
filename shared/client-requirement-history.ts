@@ -49,6 +49,25 @@ function later(a: LocalRequirementCopy, b: LocalRequirementCopy): boolean {
   return recordTime(a) > recordTime(b) || recordTime(a) === recordTime(b) && a.requirement.requirement_id.localeCompare(b.requirement.requirement_id) > 0;
 }
 
+/** Company assignment comes from imported records, never the author of a browser review. */
+export function companyAssignment(originals: ClientRequirement[], clientId: string): { sales_owner: string | null; needs_confirmation: boolean } {
+  const owners = [...new Set(originals.filter(row => row.client_id === clientId).map(row => row.sales_owner?.trim()).filter((owner): owner is string => !!owner))];
+  return { sales_owner: owners.length === 1 ? owners[0] : null, needs_confirmation: owners.length > 1 };
+}
+
+function copyWithSourceAssignment(copy: LocalRequirementCopy, originals: ClientRequirement[]): ClientRequirement {
+  const req = copy.requirement;
+  const companyRecords = originals.filter(row => row.client_id === req.client_id);
+  if (!companyRecords.length) return req;
+  const source = companyRecords.find(row => row.requirement_id === copy.original_requirement_id);
+  const assignment = source ? { sales_owner: source.sales_owner, needs_confirmation: false } : companyAssignment(companyRecords, req.client_id);
+  const warning = 'Company assignment needs confirmation: imported records name different sales owners.';
+  const notes = assignment.needs_confirmation && !req.notes?.includes(warning) ? [req.notes, warning].filter(Boolean).join('\n') : req.notes;
+  // A presentation copy preserves the old four-field record and storage bytes. Its
+  // non-business assignment warning does not change property matching conditions.
+  return req.sales_owner === assignment.sales_owner && req.notes === notes ? req : { ...req, sales_owner: assignment.sales_owner, notes };
+}
+
 /**
  * Only explicitly revised parent chains have one current complete version.
  * Original imports and legacy independent copies remain separate plans. No fields
@@ -65,7 +84,7 @@ export function currentClientRequirements(originals: ClientRequirement[], copies
     const existing = chosen.get(root);
     if (!existing || later(copy, existing)) chosen.set(root, copy);
   }
-  for (const [root, copy] of chosen) current.set(root, copy.requirement);
+  for (const [root, copy] of chosen) current.set(root, copyWithSourceAssignment(copy, originals));
   return [...current.values()];
 }
 

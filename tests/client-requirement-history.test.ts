@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createEmptyRequirement } from '../shared/assistant';
-import { currentClientRequirements, requirementChanges, clientRequirementHistory } from '../shared/client-requirement-history';
+import { currentClientRequirements, requirementChanges, clientRequirementHistory, companyAssignment } from '../shared/client-requirement-history';
 import { loadLocalRequirements, saveLocalRequirements, requirementStorageKey, type LocalRequirementCopy } from '../shared/local-requirements';
+import { EMPTY_CLIENT_DIRECTORY_FILTERS, filterClientDirectory } from '../shared/client-directory';
 import type { ClientRequirement, Dataset } from '../shared/types';
 
 const original = (id = 'R1'): ClientRequirement => ({ ...createEmptyRequirement('Fictional request.'), requirement_id: id, client_id: 'C1', client_alias: 'Fictional client', captured_at: '2026-09-01T00:00:00Z', budget_max: 2000000 });
@@ -92,4 +93,47 @@ test('optional upper size bound is validated while old copies remain readable', 
   const next = copy('L1');
   Object.assign(next.requirement, { area_min: 1000, area_max: 1500 });
   assert.deepEqual(saveLocalRequirements(storage, 'test', [next], [original()], '').copies[0], next);
+});
+
+test('legacy review authors cannot assign an unassigned company client or rewrite saved bytes', () => {
+  const imported = [{ ...original(), sales_owner: null }];
+  const legacy = copy('OLD-REVIEW');
+  legacy.requirement.sales_owner = 'BROWSER-SALES-A';
+  const storage = new MemoryStorage();
+  saveLocalRequirements(storage, 'owner-migration', [legacy], imported, '');
+  const storedBytes = storage.getItem('owner-migration');
+  const originalsBytes = JSON.stringify(imported);
+  const copiesBytes = JSON.stringify([legacy]);
+  const current = currentClientRequirements(imported, loadLocalRequirements(storage, 'owner-migration', imported).copies);
+  assert.deepEqual(current.map(row => row.sales_owner), [null, null]);
+  assert.deepEqual(filterClientDirectory(current, { ...EMPTY_CLIENT_DIRECTORY_FILTERS, visibility: 'unassigned' }, () => 'company').map(row => row.client_id), ['C1']);
+  assert.equal(storage.getItem('owner-migration'), storedBytes);
+  assert.equal(JSON.stringify(imported), originalsBytes);
+  assert.equal(JSON.stringify([legacy]), copiesBytes);
+  assert.equal(legacy.requirement.sales_owner, 'BROWSER-SALES-A');
+});
+
+test('a company revision retains its linked imported assignment instead of the browser reviewer', () => {
+  const imported = [{ ...original(), sales_owner: 'SOURCE-OWNER' }, { ...original('R2'), sales_owner: 'OTHER-SOURCE-OWNER' }];
+  const revision = copy('REVISION', 'R1', 'revision');
+  revision.requirement.sales_owner = 'BROWSER-SALES-A';
+  const bytes = JSON.stringify({ imported, revision });
+  const current = currentClientRequirements(imported, [revision]);
+  assert.deepEqual(current.map(row => [row.requirement_id, row.sales_owner]), [['REVISION', 'SOURCE-OWNER'], ['R2', 'OTHER-SOURCE-OWNER']]);
+  assert.equal(JSON.stringify({ imported, revision }), bytes);
+  assert.deepEqual(companyAssignment(imported, 'C1'), { sales_owner: null, needs_confirmation: true });
+});
+
+test('company copies without a linked original use only a unique source owner and flag conflicting assignment separately', () => {
+  const legacy: LocalRequirementCopy = { ...copy('UNLINKED', null), original_requirement_id: null };
+  legacy.requirement.sales_owner = 'BROWSER-SALES-A';
+  const imported = [{ ...original(), sales_owner: 'SOURCE-OWNER' }, { ...original('R2'), sales_owner: null }];
+  assert.equal(currentClientRequirements(imported, [legacy]).at(-1)!.sales_owner, 'SOURCE-OWNER');
+  imported[1].sales_owner = 'OTHER-SOURCE-OWNER';
+  const current = currentClientRequirements(imported, [legacy]).at(-1)!;
+  assert.equal(current.sales_owner, null);
+  assert.match(current.notes!, /Company assignment needs confirmation/);
+  assert.equal(current.missing_questions, legacy.requirement.missing_questions, 'Administrative assignment conflicts do not invent buying conditions.');
+  assert.equal(legacy.requirement.sales_owner, 'BROWSER-SALES-A');
+  assert.deepEqual(currentClientRequirements([], [legacy]), [legacy.requirement], 'Private clients retain their own browser Sales ID.');
 });

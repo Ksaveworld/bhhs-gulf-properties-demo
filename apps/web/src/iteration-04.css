@@ -4,4 +4,6 @@
 .local-storage-notice { margin-top:8px; font-size:12px; color:var(--muted); }
 .home-task-workspace { margin-top:20px; }
 .local-copy-controls > span { overflow-wrap:anywhere; }
+.home-demo-badge { margin-left:auto; padding:2px 6px; border:1px solid #d9c7d0; border-radius:4px; font-size:10px; line-height:1.4; color:#78475f; font-weight:500; }
+.create-client-drawer .home-task-workspace { margin-top:0; }
 @media (max-width:1100px) { .topbar {gap:12px;flex-wrap:wrap;height:auto;min-height:64px;padding-block:10px;} .topbar-right {flex-wrap:wrap;} }

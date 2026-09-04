@@ -37,7 +37,7 @@ async function signIn(page: Page, id = 'LIFECYCLE-A') {
   await expect(active.or(page.getByRole('banner').getByRole('button', { name: /Sign in$/ }))).toBeVisible();
   if (await active.isVisible()) await page.getByRole('button', { name: 'Switch sales identity', exact: true }).click();
   else await page.getByRole('banner').getByRole('button', { name: /Sign in$/ }).click();
-  const modal = page.getByRole('dialog', { name: 'Demo sign in', exact: true });
+  const modal = page.getByRole('dialog', { name: 'Sales sign in', exact: true });
   await modal.getByRole('textbox', { name: 'Username', exact: true }).fill('Synthetic ' + id);
   await modal.getByRole('textbox', { name: 'Sales ID', exact: true }).fill(id);
   await modal.getByRole('button', { name: 'Continue as sales', exact: true }).click();

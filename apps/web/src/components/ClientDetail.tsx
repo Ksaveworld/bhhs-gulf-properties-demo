@@ -6,17 +6,19 @@ import { clientRequirementHistory, companyAssignment } from '../../../../shared/
 import { CLIENT_VISIBILITY_LABELS, type ClientVisibility } from '../../../../shared/client-directory';
 import { evaluateMatch, latestListings, requirementTextReview } from '../../../../shared/matching';
 import { requirementAreaWarnings, resolveRequirementArea } from '../../../../shared/requirement-area';
-import { propertyAreaSqft, propertyDisplayName } from '../../../../shared/property-presentation';
+import { clientDisplayName, propertyAreaSqft, propertyDisplayName } from '../../../../shared/property-presentation';
 import {
   createFictionalViewingExamples, createViewingRecord, listingViewingDimensions, loadViewingRecords,
   saveViewingRecords, sortViewingRecords, viewingStorageKey,
   type StoredViewingRecords, type ViewingAccess, type ViewingDimension, type ViewingFeedbackSignal, type ViewingRecord,
 } from '../../../../shared/viewing-records';
 import { clientBudgetLabel } from './ClientDirectory';
+import { EnglishDateInput, isValidEnglishDateValue } from './EnglishDateInput';
 import '../client-detail.css';
 
 export interface ClientDetailProps {
   clientId: string | null;
+  open?: boolean;
   requirements: ClientRequirement[];
   originals: ClientRequirement[];
   copies: LocalRequirementCopy[];
@@ -107,6 +109,7 @@ function ClientDetailWorkspace(props: ClientDetailProps) {
     event.preventDefault(); setSaveError(''); setSaveStatus(''); setWriting(true);
     try {
       if (!selectedListing || !clientId || !viewedAt) throw new Error('Choose a property and viewing date.');
+      if (!isValidEnglishDateValue(viewedAt, 'datetime-local')) throw new Error('Choose a valid viewing date and time.');
       const record = createViewingRecord(access, { client_id: clientId, listing_id: selectedListing.listing_id, viewed_at: new Date(viewedAt).toISOString(), feedback, feedback_signal: signal,
         preference_tags: tagDimensions.flatMap(dimension => dimensions?.[dimension] ? [{ dimension, value: dimensions[dimension]! }] : []),
       });
@@ -151,20 +154,20 @@ function ClientDetailWorkspace(props: ClientDetailProps) {
     {!records.length ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No viewing history recorded for this client." /> : <ol className="client-detail-viewing-timeline" aria-label="Client viewing timeline">{sortViewingRecords(records).map(record => {
       const listing = viewingListings.find(row => row.listing_id === record.listing_id);
       const reviewFeedback = [record.feedback, ...record.preference_tags.map(tag => `Explicit preference: ${pretty(tag.dimension)} — ${pretty(tag.value)}`)].filter(Boolean).join('\n');
-      return <li key={record.record_id} data-viewing-id={record.record_id}><div><time dateTime={record.viewed_at}>{dateLabel(record.viewed_at)}</time> <Tag>{record.source_kind === 'fictional_example' ? 'Fictional example' : record.data_kind === 'demo' ? 'Demo record' : 'Sales recorded'}</Tag></div><Button type="link" onClick={() => onOpenProperty(record.listing_id)}>{listing ? propertyDisplayName(listing) : 'Viewed property'}</Button><p><strong>Feedback:</strong> {pretty(record.feedback_signal)}</p><p>{record.feedback || 'No written feedback.'}</p>{record.preference_tags.length > 0 && <p><strong>Stated preferences:</strong> {record.preference_tags.map(tag => `${pretty(tag.dimension)}: ${pretty(tag.value)}`).join(' · ')}</p>}{onUseFeedback && requirement && reviewFeedback && <Button size="small" onClick={() => onUseFeedback(requirement, reviewFeedback)}>Review as Preference Update</Button>}<small>Recorded by {record.sales_id} · Saved in this browser</small></li>;
+      return <li key={record.record_id} data-viewing-id={record.record_id}><div><time dateTime={record.viewed_at}>{dateLabel(record.viewed_at)}</time> {record.source_kind === 'fictional_example' && <Tag>Fictional example</Tag>}</div><Button type="link" onClick={() => onOpenProperty(record.listing_id)}>{listing ? propertyDisplayName(listing) : 'Viewed property'}</Button><p><strong>Feedback:</strong> {pretty(record.feedback_signal)}</p><p>{record.feedback || 'No written feedback.'}</p>{record.preference_tags.length > 0 && <p><strong>Stated preferences:</strong> {record.preference_tags.map(tag => `${pretty(tag.dimension)}: ${pretty(tag.value)}`).join(' · ')}</p>}{onUseFeedback && requirement && reviewFeedback && <Button size="small" onClick={() => onUseFeedback(requirement, reviewFeedback)}>Review as Preference Update</Button>}<small>Recorded by {record.sales_id} · Saved in this browser</small></li>;
     })}</ol>}
     {salesId && requirement && <details className="client-detail-viewing-entry"><summary>Add a Viewing Record</summary><form className="client-detail-viewing-form" onSubmit={saveViewing}>
       <label><span>Viewed Property</span><select aria-label="Viewed property" value={selectedListing?.listing_id ?? ''} onChange={event => { setListingId(event.target.value); setTagDimensions([]); }} required>{viewingListings.map(listing => <option key={listing.listing_id} value={listing.listing_id}>{propertyDisplayName(listing)} · {listing.area_name}{listing.currency && listing.currency !== 'AED' ? ` · ${listing.currency}` : ''}</option>)}</select></label>
-      <label><span>Viewed At (local time)</span><input aria-label="Viewed at" type="datetime-local" value={viewedAt} required onChange={event => setViewedAt(event.target.value)} /></label>
+      <label><span>Viewed At (local time)</span><EnglishDateInput label="Viewed at" kind="datetime-local" value={viewedAt} onChange={setViewedAt} /></label>
       <label><span>Visit Feedback</span><select aria-label="Visit feedback signal" value={signal} onChange={event => setSignal(event.target.value as ViewingFeedbackSignal)}>{(['not_recorded', 'positive', 'mixed', 'negative'] as const).map(value => <option key={value} value={value}>{pretty(value)}</option>)}</select></label>
       <label className="client-detail-wide"><span>Viewing Feedback</span><textarea aria-label="Viewing feedback" rows={3} maxLength={4000} value={feedback} onChange={event => setFeedback(event.target.value)} placeholder="Record the client's comments." /></label>
       <fieldset className="client-detail-wide"><legend>Explicitly Stated Preferences</legend><p>Select only what the client said they liked.</p>{(['area', 'type', 'size'] as const).map(dimension => <label className="client-detail-checkbox" key={dimension}><input type="checkbox" aria-label={`Stated ${dimension} preference`} checked={tagDimensions.includes(dimension)} disabled={!dimensions?.[dimension]} onChange={event => setTagDimensions(previous => event.target.checked ? [...previous, dimension] : previous.filter(value => value !== dimension))} /><span>{pretty(dimension)}: {pretty(dimensions?.[dimension])}</span></label>)}</fieldset>
-      <div className="client-detail-wide"><Button type="primary" htmlType="submit" loading={writing} disabled={!canWrite || !selectedListing}>Save Viewing Record</Button><small>{requirement.data_kind === 'demo' || selectedListing?.data_kind === 'demo' ? 'Saved as a demo record in this browser.' : 'Saved as a sales record in this browser.'}</small></div>
+      <div className="client-detail-wide"><Button type="primary" htmlType="submit" loading={writing} disabled={!canWrite || !selectedListing}>Save Viewing Record</Button><small>Saved to this browser.</small></div>
     </form></details>}
-    {requirement?.data_kind === 'demo' && <details className="client-detail-demo-tools"><summary>Demo Viewing Examples</summary><p>Optional fictional records for this demo client.</p><Button disabled={!canWrite || records.some(row => row.source_kind === 'fictional_example')} onClick={examples}>Load Fictional Viewings</Button></details>}
+    {requirement?.data_kind === 'demo' && <details className="client-detail-demo-tools"><summary>Viewing Examples</summary><p>Optional fictional viewing records for this client.</p><Button disabled={!canWrite || records.some(row => row.source_kind === 'fictional_example')} onClick={examples}>Load Fictional Viewings</Button></details>}
   </section>;
 
-  return <Drawer open={!!clientId} onClose={onClose} width={840} destroyOnClose rootClassName="client-detail-drawer" title={<div className="client-detail-title"><strong>{requirement?.client_alias || 'Client Details'}</strong><div><span>{clientId}</span><Tag>{CLIENT_VISIBILITY_LABELS[visibility]}</Tag>{visibility === 'private' && <span>Sales ID: {salesId || 'Not supplied'}</span>}{requirement?.data_kind === 'demo' && <Tag>Demo</Tag>}</div></div>} extra={<Button disabled={!requirement || !clientId} onClick={() => clientId && requirement && onExport(clientId, requirement.requirement_id)}>Export Report</Button>}>
+  return <Drawer open={props.open ?? !!clientId} onClose={onClose} width={840} rootClassName="client-detail-drawer" title={<div className="client-detail-title"><strong>{requirement ? clientDisplayName(requirement) : 'Client Details'}</strong><div><span>{clientId}</span><Tag>{CLIENT_VISIBILITY_LABELS[visibility]}</Tag>{visibility === 'private' && <span>Sales ID: {salesId || 'Not supplied'}</span>}</div></div>} extra={<Button disabled={!requirement || !clientId} onClick={() => clientId && requirement && onExport(clientId, requirement.requirement_id)}>Export Report</Button>}>
     <Tabs defaultActiveKey="recommended" items={[{ key: 'recommended', label: 'Recommended Properties', children: recommendationTab }, { key: 'viewings', label: 'Viewing History', children: viewingTab }]} />
   </Drawer>;
 }

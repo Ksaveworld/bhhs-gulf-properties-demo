@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Button, ConfigProvider, Input, Modal, Skeleton, Tag } from 'antd';
-import { ApartmentOutlined, ArrowRightOutlined, DatabaseOutlined, HomeOutlined, LoginOutlined, ReloadOutlined, TeamOutlined } from '@ant-design/icons';
+import { Alert, Button, ConfigProvider, Drawer, Input, Modal, Skeleton, Tag } from 'antd';
+import enUS from 'antd/locale/en_US';
+import { ApartmentOutlined, HomeOutlined, LoginOutlined, ReloadOutlined, TeamOutlined } from '@ant-design/icons';
 import type { ClientRequirement, Dataset } from '../../../shared/types';
 import { EMPTY_FILTERS, latestListings, type Filters } from '../../../shared/matching';
 import { EMPTY_CLIENT_DIRECTORY_FILTERS, type ClientDirectoryFilters } from '../../../shared/client-directory';
@@ -10,6 +11,7 @@ import type { LocalRequirementCopy } from '../../../shared/local-requirements';
 import { loadViewingRecords, type ViewingRecord } from '../../../shared/viewing-records';
 import { clientSalesReport, propertySalesReport, type SalesReport } from '../../../shared/sales-report';
 import { homeReviewQuestions, type HomeTask } from '../../../shared/home-tasks';
+import { parseWorkspaceRoute, workspaceRouteHash, pushDetail, popDetail, type DetailTarget, type WorkspaceRoute } from '../../../shared/detail-navigation';
 import { HomeWorkspace } from './components/HomeWorkspace';
 import { ClientRequirementEditor } from './components/ClientRequirementEditor';
 import { PropertyDetail } from './components/PropertyDetail';
@@ -20,12 +22,8 @@ import { ReportExport } from './components/ReportExport';
 import { useLocalRequirements } from './useLocalRequirements';
 import './iteration-03.css';
 import './iteration-04.css';
-type Route = {
-    page: 'home' | 'properties' | 'clients';
-    client: string | null;
-    listing: string | null;
-};
-function readRoute(): Route { const [path, query] = location.hash.replace(/^#\/?/, '').split('?'); const params = new URLSearchParams(query); return { page: path === 'clients' ? 'clients' : path === 'properties' || path === 'reports' ? 'properties' : 'home', client: params.get('client'), listing: params.get('listing') }; }
+type Route = WorkspaceRoute;
+function readRoute(): Route { return parseWorkspaceRoute(location.hash); }
 const headings: Record<Route['page'], [
     string,
     string
@@ -37,7 +35,7 @@ export function App() {
     const [searchRequirement, setSearchRequirement] = useState<ClientRequirement | null>(null);
     const [homeTask, setHomeTask] = useState<HomeTask>('property'), [homeVersion, setHomeVersion] = useState(0);
     const [reviewTarget, setReviewTarget] = useState<ClientRequirement | null>(null), [editDraft, setEditDraft] = useState<ClientRequirement | null>(null);
-    const [dataOpen, setDataOpen] = useState(false), [report, setReport] = useState<SalesReport | null>(null), [reportError, setReportError] = useState('');
+    const [createOpen, setCreateOpen] = useState(false), [report, setReport] = useState<SalesReport | null>(null), [reportError, setReportError] = useState('');
     const [identity, setIdentity] = useState<SalesIdentity | null>(() => { try {
         return loadSalesIdentity(localStorage);
     }
@@ -49,16 +47,26 @@ export function App() {
     const identityRef = useRef(identity);
     identityRef.current = identity;
     const controller = useRef<AbortController>();
-    function navigate(next: Route) { const query = new URLSearchParams(); if (next.client)
-        query.set('client', next.client); if (next.listing)
-        query.set('listing', next.listing); const hash = `#/${next.page}${query.size ? '?' + query : ''}`; setRoute(next); if (location.hash !== hash)
-        location.hash = hash; }
-    function changeIdentity(next: SalesIdentity | null) { const previous = identityRef.current; if (previous?.sales_id !== next?.sales_id && previous) {
-        setHomeVersion(v => v + 1);
-        setHomeTask('property');
-    } identityRef.current = next; setIdentity(next); setIdentityError(''); setReviewTarget(null); setEditDraft(null); setReport(null); setReportError(''); setSearchRequirement(null); setFilters({ ...EMPTY_FILTERS }); setClientFilters({ ...EMPTY_CLIENT_DIRECTORY_FILTERS }); if (previous)
-        navigate({ page: 'home', client: null, listing: null }); }
-    useEffect(() => { const hashChanged = () => setRoute(readRoute()); const identityChanged = (event: StorageEvent) => { if (event.key !== null && event.key !== SALES_IDENTITY_KEY)
+    function navigate(next: Route) {
+        const hash = workspaceRouteHash(next);
+        setRoute(next);
+        if (location.hash !== hash) location.hash = hash;
+    }
+    function openDetail(target: DetailTarget) { navigate(pushDetail(route, target)); }
+    function closeDetail() { navigate(popDetail(route)); }
+    function changeIdentity(next: SalesIdentity | null) {
+        const previous = identityRef.current;
+        identityRef.current = next; setIdentity(next); setIdentityError('');
+        setReport(null); setReportError('');
+        // The first sign-in resumes the visible guest flow; switching owners clears private context.
+        if (previous && previous.sales_id !== next?.sales_id) {
+            setHomeVersion(v => v + 1); setHomeTask('property'); setCreateOpen(false);
+            setReviewTarget(null); setEditDraft(null); setSearchRequirement(null);
+            setFilters({ ...EMPTY_FILTERS }); setClientFilters({ ...EMPTY_CLIENT_DIRECTORY_FILTERS });
+            navigate({ page: 'home', details: [] });
+        }
+    }
+    useEffect(() => { const hashChanged = () => { setRoute(readRoute()); setCreateOpen(false); setEditDraft(null); setReviewTarget(null); setReport(null); }; const identityChanged = (event: StorageEvent) => { if (event.key !== null && event.key !== SALES_IDENTITY_KEY)
         return; try {
         changeIdentity(loadSalesIdentity(localStorage));
     }
@@ -96,7 +104,6 @@ export function App() {
     const requirements = useMemo(() => currentClientRequirements(dataset?.client_requirements ?? [], local.copies), [dataset, local.copies]);
     const localById = new Map(local.copies.map(copy => [copy.requirement.requirement_id, copy]));
     const areas = useMemo(() => [...new Set(listings.map(row => row.area_name))].sort(), [listings]);
-    const selected = sourceListings.find(row => row.listing_id === route.listing) ?? null;
     const [viewings, setViewings] = useState<{
         key: string | null;
         records: ViewingRecord[];
@@ -116,7 +123,7 @@ export function App() {
     const visibleViewings = viewings.key === local.key ? viewings.records : [];
     function visibility(id: string) { const req = requirements.find(r => r.requirement_id === id) ?? localById.get(id)?.requirement; if (req && dataset?.client_requirements.some(r => r.client_id === req.client_id))
         return 'company' as const; return identity ? 'private' as const : 'legacy' as const; }
-    function viewClient(req: ClientRequirement) { navigate({ page: 'clients', client: req.client_id, listing: null }); }
+    function viewClient(req: ClientRequirement) { openDetail({ kind: 'client', id: req.client_id }); }
     function openEdit(req: ClientRequirement, feedback?: string) { setReviewTarget(req); setEditDraft(feedback ? { ...req, soft_preferences: [req.soft_preferences, feedback].filter(Boolean).join('\n') } : req); }
     function openSignIn() { setUsername(identity?.username ?? ''); setSalesIdInput(identity?.sales_id ?? ''); setLoginError(''); setSignInOpen(true); }
     function signIn() { try {
@@ -143,8 +150,13 @@ export function App() {
         await local.save({ requirement: req, original_requirement_id: original, parent_requirement_id: target?.requirement_id ?? null, saved_at: new Date().toISOString(), ...(target ? { edit_kind: 'revision' as const } : {}) });
         if (identityRef.current?.sales_id !== owner)
             throw new Error('The sales identity changed. Open the saved client under its owner.');
-        setClientFilters({ ...EMPTY_CLIENT_DIRECTORY_FILTERS });
-        navigate({ page: 'clients', client: req.client_id, listing: null });
+        if (!target) {
+            setCreateOpen(false);
+            if (route.page === 'home') {
+                setClientFilters({ ...EMPTY_CLIENT_DIRECTORY_FILTERS });
+                navigate({ page: 'clients', details: [{ kind: 'client', id: req.client_id }] });
+            } else openDetail({ kind: 'client', id: req.client_id });
+        }
     }
     async function deleteCopy(copy: LocalRequirementCopy) { try {
         await local.remove(copy.requirement.requirement_id);
@@ -161,7 +173,7 @@ export function App() {
         } }
     function localControls(req: ClientRequirement) { const copy = localById.get(req.requirement_id); if (!copy)
         return null; return <div className="local-copy-controls"><Tag data-testid="local-copy-status" color="blue">Saved in this browser</Tag><span>Saved {new Date(copy.saved_at).toLocaleString('en-GB')} · Business conditions still require review.</span><div><Button size="small" danger disabled={local.writing} onClick={() => void deleteCopy(copy)}>Delete local copy</Button>{copy.original_requirement_id && <Button size="small" disabled={local.writing} onClick={() => void restore(copy)}>Restore original</Button>}</div></div>; }
-    function addPrivate() { setHomeTask('create'); setHomeVersion(v => v + 1); navigate({ page: 'home', client: null, listing: null }); }
+    function addPrivate() { setCreateOpen(true); }
     function exportProperty(id: string) { const row = sourceListings.find(l => l.listing_id === id); if (row && dataset) {
         setReportError('');
         setReport(propertySalesReport(row, dataset, requirements, visibleViewings));
@@ -182,28 +194,36 @@ export function App() {
         setReportError((reason as Error).message);
     } }
     const reset = () => { setFilters({ ...EMPTY_FILTERS }); setSearchRequirement(null); };
-    return <ConfigProvider theme={{ token: { colorPrimary: '#55223f', colorInfo: '#55223f', colorText: '#28252d', colorBgLayout: '#f5f6f8', fontFamily: "'Segoe UI', Arial, sans-serif", borderRadius: 6, controlHeight: 37 }, components: { Table: { headerBg: '#f7f8fa', cellPaddingBlock: 18 }, Button: { primaryShadow: 'none' } } }}>
+    return <ConfigProvider locale={enUS} theme={{ token: { colorPrimary: '#55223f', colorInfo: '#55223f', colorText: '#28252d', colorBgLayout: '#f5f6f8', fontFamily: "'Segoe UI', Arial, sans-serif", borderRadius: 6, controlHeight: 37 }, components: { Table: { headerBg: '#f7f8fa', cellPaddingBlock: 18 }, Button: { primaryShadow: 'none' } } }}>
     <div className="workspace"><aside className="sidebar"><div className="brand"><span className="brand-circle">BHHS</span><span className="brand-small">BERKSHIRE HATHAWAY<br />HOMESERVICES</span><strong>Gulf Properties</strong></div><div className="workspace-label">SALES WORKSPACE</div>
-      <nav aria-label="Main navigation">{([['home', <HomeOutlined />, 'Home'], ['properties', <ApartmentOutlined />, 'Property library'], ['clients', <TeamOutlined />, 'Clients & needs']] as const).map(([page, icon, label]) => <button key={page} className={`nav-item ${route.page === page ? 'active' : ''}`} onClick={() => navigate({ page, client: null, listing: null })}>{icon}{label}</button>)}</nav>
-      <div className="sidebar-bottom"><button className="nav-item" onClick={() => setDataOpen(true)}><DatabaseOutlined /> Data & sources</button><p>Sales assistance demo</p><div className="sales-profile"><span className="sales-avatar">{identity?.username.slice(0, 1) ?? 'S'}</span><div><strong>{identity?.username ?? 'Sales workspace'}</strong><span>{identity?.sales_id ?? 'Guest'}</span></div></div></div></aside>
+      <nav aria-label="Main navigation">{([['home', <HomeOutlined />, 'Home'], ['properties', <ApartmentOutlined />, 'Property library'], ['clients', <TeamOutlined />, 'Clients & needs']] as const).map(([page, icon, label]) => <button key={page} aria-label={label} className={`nav-item ${route.page === page ? 'active' : ''}`} onClick={() => navigate({ page, details: [] })}>{icon}{label}{page === 'home' && <span className="home-demo-badge" title="Synthetic demonstration data">Demo</span>}</button>)}</nav>
+      <div className="sidebar-bottom"><div className="sales-profile"><span className="sales-avatar">{identity?.username.slice(0, 1) ?? 'S'}</span><div><strong>{identity?.username ?? 'Sales workspace'}</strong><span>{identity?.sales_id ?? 'Guest'}</span></div></div></div></aside>
       <div className="workspace-main"><header className="topbar"><span>Gulf Properties <span className="breadcrumb-slash">/</span> {route.page === 'home' ? 'Home' : headings[route.page][0]}</span><div className="topbar-right">{identity ? <><span data-testid="current-sales-identity">{identity.username} · {identity.sales_id}</span><Button onClick={openSignIn}>Switch sales identity</Button><Button onClick={signOut}>Sign out</Button></> : <Button icon={<LoginOutlined />} onClick={openSignIn}>Sign in</Button>}</div></header>
       <main className="main-content">{route.page !== 'home' && <div className="page-heading"><div><p className="eyebrow">BHHS GULF PROPERTIES</p><h1>{headings[route.page][0]}</h1><p className="heading-description">{headings[route.page][1]}</p></div></div>}
-      <div className="evidence-banner"><span className="banner-dot"/><span>{dataset?.meta.mode === 'product' ? 'Imported records · Review source details and open questions.' : 'Demonstration only · Fictional properties, prices and clients.'}</span><button onClick={() => setDataOpen(true)}>Data & sources <ArrowRightOutlined /></button></div>
       {identityError && <Alert type="error" message="Sales identity needs attention" description={identityError}/>}{error && <Alert type="error" message="Data unavailable" description={error} action={<Button onClick={() => void load()}>Retry loading</Button>}/>}
       {busy ? <div className="loading-panel" role="status" aria-label="Loading property data"><Skeleton active paragraph={{ rows: 8 }}/>Loading property data…</div> : dataset && <>
         {!!dataset.meta.quarantined_count && <Alert type="warning" message={`${dataset.meta.quarantined_count} records await source review and are excluded.`}/>}
         {local.error && <Alert data-testid="local-storage-error" type="error" message="Browser saving needs attention" description={local.error} action={<Button onClick={local.retry}>Retry local storage</Button>}/>}
         {reportError && <Alert type="error" closable onClose={() => setReportError('')} message={reportError}/>}
         {route.page !== 'home' && <div className="local-storage-notice" data-testid="local-storage-notice" role="status">{local.loading ? 'Loading browser copies…' : `${local.copies.length} saved browser copies · Current browser and data version${identity ? ` · ${identity.sales_id}` : ''}`}</div>}
-        {route.page === 'home' && <HomeWorkspace key={`${homeVersion}:${dataset.meta.storage_namespace}`} initialTask={homeTask} areas={areas} canSave={!!identity && !local.loading} onSignIn={openSignIn} onFindProperties={(next, req) => { setFilters(next); setSearchRequirement(req); navigate({ page: 'properties', client: null, listing: null }); }} onFindClients={next => { setClientFilters(next); navigate({ page: 'clients', client: null, listing: null }); }} onCreateClient={req => saveRequirement(req, null)}/>}
-        {route.page === 'properties' && <>{searchRequirement && homeReviewQuestions(searchRequirement).length > 0 && <Alert type="warning" message="Search conditions to clarify" description={<details><summary>Review open questions</summary><ul>{homeReviewQuestions(searchRequirement).map((q, i) => <li key={i}>{q}</li>)}</ul><p>{searchRequirement.raw_request}</p></details>}/>}<PropertyLibrary listings={listings} requirements={requirements} filters={filters} onFilter={setFilters} active={searchRequirement} onViewClient={viewClient} onReview={openEdit} onOpen={id => navigate({ ...route, listing: id })} onReset={reset} localControls={localControls} onExport={exportProperty}/></>}
+        {route.page === 'home' && <HomeWorkspace key={`${homeVersion}:${dataset.meta.storage_namespace}`} initialTask={homeTask} areas={areas} canSave={!!identity && !local.loading} onSignIn={openSignIn} onFindProperties={(next, req) => { setFilters(next); setSearchRequirement(req); navigate({ page: 'properties', details: [] }); }} onFindClients={next => { setClientFilters(next); navigate({ page: 'clients', details: [] }); }} onCreateClient={req => saveRequirement(req, null)}/>}
+        {route.page === 'properties' && <>{searchRequirement && homeReviewQuestions(searchRequirement).length > 0 && <Alert type="warning" message="Search conditions to clarify" description={<details><summary>Review open questions</summary><ul>{homeReviewQuestions(searchRequirement).map((q, i) => <li key={i}>{q}</li>)}</ul><p>{searchRequirement.raw_request}</p></details>}/>}<PropertyLibrary listings={listings} filters={filters} onFilter={setFilters} active={searchRequirement} onOpen={id => openDetail({ kind: 'listing', id })} onReset={reset}/></>}
         {route.page === 'clients' && <ClientDirectory requirements={requirements} listings={listings} filters={clientFilters} onFiltersChange={setClientFilters} getVisibility={visibility} onView={viewClient} onAddPrivate={addPrivate} canAddPrivate={!!identity} renderLocalControls={localControls}/>}
       </>}
-      <footer className="page-footer"><span>BHHS Gulf Properties · Sales assistance demo</span><Button aria-label="Refresh data" type="text" size="small" icon={<ReloadOutlined />} loading={busy} onClick={() => void load()}>Refresh data</Button></footer></main></div></div>
-    {dataset && !busy && <><ClientDetail clientId={route.client} requirements={requirements} originals={dataset.client_requirements} copies={local.copies} listings={listings} viewingListings={sourceListings} salesId={identity?.sales_id ?? null} storageScope={local.key} getVisibility={visibility} onClose={() => navigate({ ...route, client: null })} onOpenProperty={id => navigate({ ...route, listing: id })} onEdit={req => openEdit(req)} onExport={exportClient} renderLocalControls={localControls} onUseFeedback={(req, feedback) => openEdit(req, feedback)}/><PropertyDetail key={`${local.key}:${identity?.sales_id ?? 'guest'}`} listing={selected} dataset={dataset} requirements={requirements} salesId={identity?.sales_id ?? null} storageScope={local.key} viewingRecords={visibleViewings} onClose={() => navigate({ ...route, listing: null })} onViewClient={viewClient}/></>}
+      <footer className="page-footer"><span>BHHS Gulf Properties · Sales workspace</span><Button aria-label="Refresh data" type="text" size="small" icon={<ReloadOutlined />} loading={busy} onClick={() => void load()}>Refresh data</Button></footer></main></div></div>
+    {dataset && !busy && route.details.map((target, index) => {
+        const open = index === route.details.length - 1;
+        const key = `${dataset.meta.storage_namespace}:${index}:${target.kind}:${target.id}`;
+        if (target.kind === 'client') return <ClientDetail key={key} open={open} clientId={target.id} requirements={requirements} originals={dataset.client_requirements} copies={local.copies} listings={listings} viewingListings={sourceListings} salesId={identity?.sales_id ?? null} storageScope={local.key} getVisibility={visibility} onClose={closeDetail} onOpenProperty={id => openDetail({ kind: 'listing', id })} onEdit={req => openEdit(req)} onExport={exportClient} renderLocalControls={localControls} onUseFeedback={(req, feedback) => openEdit(req, feedback)}/>;
+        const listing = sourceListings.find(row => row.listing_id === target.id) ?? null;
+        if (!listing) return <Drawer key={key} open={open} title="Property unavailable" onClose={closeDetail}><Alert type="warning" message="This property is not available in the current data version."/><Button onClick={closeDetail}>Back to previous view</Button></Drawer>;
+        return <PropertyDetail key={key} open={open} listing={listing} dataset={dataset} requirements={requirements} salesId={identity?.sales_id ?? null} storageScope={local.key} viewingRecords={visibleViewings} onClose={closeDetail} onViewClient={viewClient} onExport={() => exportProperty(target.id)} onSignIn={openSignIn}/>;
+    })}
+    {dataset && !busy && createOpen && <Drawer rootClassName="create-client-drawer" title="Create a Private Client" open width="min(880px, 96vw)" onClose={() => setCreateOpen(false)}>
+      <HomeWorkspace embedded initialTask="create" areas={areas} canSave={!!identity && !local.loading} onSignIn={openSignIn} onFindProperties={() => undefined} onFindClients={() => undefined} onCreateClient={req => saveRequirement(req, null)}/>
+    </Drawer>}
     {editDraft && reviewTarget && <ClientRequirementEditor key={reviewTarget.requirement_id} initial={editDraft} areas={areas} canSave={!!identity && !local.loading} onSignIn={openSignIn} onClose={() => { setEditDraft(null); setReviewTarget(null); }} onSave={req => saveRequirement(req, reviewTarget)}/>}
     <ReportExport key={`${local.key}:${identity?.sales_id ?? 'guest'}:${report?.filename ?? ''}`} report={report} onClose={() => setReport(null)}/>
-    <Modal title="Demo sign in" open={signInOpen} onCancel={() => setSignInOpen(false)} onOk={signIn} okText="Continue as sales" destroyOnClose><p>Choose a sales identity for private copies in this browser.</p>{loginError && <Alert data-testid="identity-save-error" type="error" message={loginError}/>}<label className="field login-field"><span>Username</span><Input aria-label="Username" value={username} onChange={e => setUsername(e.target.value)} maxLength={80}/></label><label className="field login-field"><span>Sales ID</span><Input aria-label="Sales ID" value={salesIdInput} onChange={e => setSalesIdInput(e.target.value)} onPressEnter={signIn} maxLength={64}/></label></Modal>
-    <Modal title="Data & sources" open={dataOpen} onCancel={() => setDataOpen(false)} footer={<Button onClick={() => setDataOpen(false)}>Close</Button>} width={670}><p>{dataset?.meta.label}</p><dl className="data-notes"><dt>Demonstration</dt><dd>Sample properties, prices, clients and source references are fictional. Imported product records remain separately identified. Saving or checking a property does not confirm source accuracy, usage permission or business acceptance.</dd><dt>Rules assistant</dt><dd>Pattern extraction and deterministic comparisons. No language model is connected. Missing or contradictory conditions remain open questions; no sale probability or buying power is inferred.</dd><dt>Browser storage</dt><dd>Requirements, viewing notes and sales confirmations are saved by data version and Sales ID in this browser only. Other browsers and site addresses have separate copies. Clearing site data removes local records.</dd><dt>Sales identity</dt><dd>This is a demo identity selector, not server authentication. Only synthetic samples belong in the public demo. Company clients stay shared; each sales identity sees its own private edits.</dd><dt>Requirements and history</dt><dd>Explicit edits create complete new versions. Original imports and independent purchase plans are retained. Delete a local version to return to its parent; Restore original saves the original conditions as a new version.</dd><dt>Price and size</dt><dd>The library uses AED and sq ft. Other currencies retain their original values in source records. Size units do not establish area measurement basis.</dd><dt>Legacy copies</dt><dd>Browser copies created before sales identities remain available while signed out through Local data notes in Clients. They are not unassigned company clients.</dd></dl></Modal>
+    <Modal title="Sales sign in" open={signInOpen} zIndex={1500} onCancel={() => setSignInOpen(false)} onOk={signIn} okText="Continue as sales" destroyOnClose><p>Choose a sales identity for private copies in this browser.</p>{loginError && <Alert data-testid="identity-save-error" type="error" message={loginError}/>}<label className="field login-field"><span>Username</span><Input aria-label="Username" value={username} onChange={e => setUsername(e.target.value)} maxLength={80}/></label><label className="field login-field"><span>Sales ID</span><Input aria-label="Sales ID" value={salesIdInput} onChange={e => setSalesIdInput(e.target.value)} onPressEnter={signIn} maxLength={64}/></label></Modal>
   </ConfigProvider>;
 }

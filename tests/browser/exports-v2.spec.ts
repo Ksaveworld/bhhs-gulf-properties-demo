@@ -41,7 +41,9 @@ async function docx(bytes: Buffer) {
   return { zip, xml, text };
 }
 async function exportProperty(page: Page) {
-  await page.getByTestId('listing-DEMO-L-001').getByRole('button', { name: 'Export Report DEMO-L-001', exact: true }).click();
+  const property = page.locator('.property-detail.ant-drawer-open .ant-drawer-content');
+  if (!await property.isVisible()) await page.getByTestId('listing-DEMO-L-001').getByRole('button', { name: /^Open / }).click();
+  await property.getByRole('button', { name: 'Export Report', exact: true }).click();
 }
 
 test('property Word download contains one own-history section, comparable evidence, chart and current row price', async ({ page }, testInfo) => {
@@ -104,8 +106,9 @@ test('private client report is scoped to its creator and is absent from another 
   await exportProperty(page);
   const ownProperty = await docx(await download(page, testInfo, 'Word', 'own-sales-property'));
   expect(ownProperty.text).toContain('Synthetic Export Owner Only');
+  await page.locator('.property-detail.ant-drawer-open .ant-drawer-content').getByRole('button', { name: 'Close', exact: true }).click();
   await page.getByRole('button', { name: 'Switch sales identity', exact: true }).click();
-  const signIn = page.getByRole('dialog', { name: 'Demo sign in', exact: true });
+  const signIn = page.getByRole('dialog', { name: 'Sales sign in', exact: true });
   await signIn.getByRole('textbox', { name: 'Username', exact: true }).fill('Synthetic Other Sales');
   await signIn.getByRole('textbox', { name: 'Sales ID', exact: true }).fill('EXPORT-OTHER-SALES');
   await signIn.getByRole('button', { name: 'Continue as sales', exact: true }).click();

@@ -10,8 +10,12 @@
 .pv2-filters .pv2-range > span { color: #999; flex: 0 0 12px; text-align: center; }
 .pv2-library-layout { display: block; min-width: 0; }
 .pv2-library-layout .results-panel { width: 100%; min-width: 0; }
-.pv2-column-sort > span:last-child { display: flex; flex-direction: column; border: 0; gap: 0; }
-.pv2-column-sort button { height: 13px; min-height: 13px; width: 21px; border: 0 !important; padding: 0; line-height: 12px; color: #a9a1aa; border-radius: 2px; background: transparent; }
+.property-table .pv2-column-sort { display: inline-flex; align-items: center; gap: 5px; vertical-align: middle; white-space: nowrap; }
+.property-table .pv2-column-sort > span:last-child { display: flex; flex-direction: column; align-items: center; justify-content: center; border: 0; gap: 0; }
+.property-table .pv2-column-sort button { display: flex; align-items: center; justify-content: center; height: 12px; min-height: 12px; width: 18px; border: 0; padding: 0; line-height: 1; font-size: 11px; color: #a9a1aa; border-radius: 2px; background: transparent; cursor: pointer; }
+.property-table .pv2-column-sort button .anticon { display: flex; }
+.property-table .property-link { font-size: 12px; cursor: pointer; }
+.property-table .property-link:focus-visible { outline: 2px solid #55223f; outline-offset: 3px; }
 .pv2-column-sort button[aria-pressed='true'] { color: #55223f; background: #55223f0d; }
 .pv2-column-sort button:focus-visible, .pv2-status-info:focus-visible { outline: 2px solid #55223f; outline-offset: 2px; }
 .pv2-status-title { display: inline-flex; align-items: center; gap: 7px; }

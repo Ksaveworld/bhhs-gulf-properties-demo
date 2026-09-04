@@ -48,7 +48,8 @@ test('legacy USD viewing survives reload and reopen, retains its original curren
   const viewing = drawer.locator(`li[data-viewing-id="${record.record_id}"]`);
   await expect(viewing).toContainText(propertyName);
   await expect(viewing).toContainText(record.feedback);
-  await expect(viewing).toContainText('Demo record');
+  await expect(viewing).not.toContainText('Demo record');
+  await expect(viewing).toContainText(`Recorded by ${record.sales_id}`);
   await expect(viewing.locator('time')).toHaveAttribute('datetime', record.viewed_at);
   expect(await page.evaluate(key => localStorage.getItem(key), key)).toBe(raw);
 

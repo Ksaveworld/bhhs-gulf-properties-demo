@@ -8,6 +8,7 @@ import {
 } from '../../../../shared/client-directory';
 import { requirementTextReview } from '../../../../shared/matching';
 import { requirementAreaWarnings } from '../../../../shared/requirement-area';
+import { clientDisplayName } from '../../../../shared/property-presentation';
 import type { ClientRequirement, ListingSnapshot } from '../../../../shared/types';
 import '../client-directory.css';
 
@@ -33,7 +34,7 @@ export function clientBudgetLabel(requirement: ClientRequirement): string {
   return min !== null ? `From ${unit} ${number.format(min)}` : `Up to ${unit} ${number.format(max!)}`;
 }
 
-export function ClientDirectory({ requirements, getVisibility, onView, onAddPrivate, canAddPrivate, filters: externalFilters, onFiltersChange }: ClientDirectoryProps) {
+export function ClientDirectory({ requirements, getVisibility, onView, onAddPrivate, filters: externalFilters, onFiltersChange }: ClientDirectoryProps) {
   const [localFilters, setLocalFilters] = useState<ClientDirectoryFilters>({ ...EMPTY_CLIENT_DIRECTORY_FILTERS });
   const filters = externalFilters ?? localFilters;
   const setFilters = (next: ClientDirectoryFilters) => { setLocalFilters(next); onFiltersChange?.(next); };
@@ -46,7 +47,7 @@ export function ClientDirectory({ requirements, getVisibility, onView, onAddPriv
   return <section className="client-directory" aria-label="Client directory">
     <div className="client-directory-heading">
       <div><h2>Clients and Needs</h2><p>Review current needs, recommended properties and viewing feedback.</p></div>
-      <div className="client-directory-add"><Button type="primary" icon={<PlusOutlined />} disabled={!canAddPrivate} onClick={onAddPrivate}>Add Private Client</Button>{!canAddPrivate && <span>Sign in to add a private client.</span>}</div>
+      <div className="client-directory-add"><Button type="primary" icon={<PlusOutlined />} onClick={onAddPrivate}>Add Private Client</Button></div>
     </div>
     <div className="client-directory-filters" role="search" aria-label="Filter clients">
       <div className="client-directory-fields">
@@ -65,12 +66,13 @@ export function ClientDirectory({ requirements, getVisibility, onView, onAddPriv
     <div className="client-directory-results" role="status" aria-live="polite"><strong>{groups.length} client{groups.length === 1 ? '' : 's'}</strong>{filtered && <span>Matching your filters</span>}</div>
     {groups.length === 0 ? <div className="client-directory-empty"><Empty description={budgetError ? 'Correct the budget range to see clients.' : 'No clients match these filters.'} /></div> : <div className="client-directory-list">{groups.map(group => {
       const requirement = [...group.requirements].sort((a, b) => Date.parse(b.captured_at) - Date.parse(a.captured_at) || b.requirement_id.localeCompare(a.requirement_id))[0];
+      const name = clientDisplayName(requirement);
       const visibility = getVisibility(requirement.requirement_id);
       const areaNeedsReview = requirementAreaWarnings(requirement).length > 0;
       const needsReview = requirementTextReview(requirement).warnings.length > 0 || !!requirement.missing_questions;
       const unassigned = visibility === 'company' && !requirements.some(row => row.client_id === group.client_id && getVisibility(row.requirement_id) === 'company' && row.sales_owner?.trim());
       return <article key={group.client_id} className="client-directory-client" data-client-id={group.client_id} data-requirement-id={requirement.requirement_id}>
-        <div className="client-directory-client-heading"><span className="client-directory-avatar" aria-hidden="true">{group.client_alias.split(/\s+/).filter(Boolean).map(word => word[0]).slice(0, 2).join('')}</span><div className="client-directory-client-name"><strong>{group.client_alias}</strong><span>{group.client_id}</span></div><Tag>{CLIENT_VISIBILITY_LABELS[visibility]}</Tag>{unassigned && <Tag>Unassigned</Tag>}{requirement.data_kind === 'demo' && <Tag>Demo</Tag>}</div>
+        <div className="client-directory-client-heading"><span className="client-directory-avatar" aria-hidden="true">{name.split(/\s+/).filter(Boolean).map(word => word[0]).slice(0, 2).join('')}</span><div className="client-directory-client-name"><strong>{name}</strong><span>{group.client_id}</span></div><Tag>{CLIENT_VISIBILITY_LABELS[visibility]}</Tag>{unassigned && <Tag>Unassigned</Tag>}</div>
         <div className="client-directory-card-body"><dl className="client-directory-facts"><div><dt>Budget Range</dt><dd>{clientBudgetLabel(requirement)}</dd></div><div><dt>Preferred Location</dt><dd>{requirement.preferred_areas?.join(', ') || 'Not supplied'}</dd></div><div><dt>Property Type</dt><dd>{requirement.property_types?.map(value => value.replaceAll('_', ' ')).join(', ') || 'Not supplied'}</dd></div><div><dt>Purchase By</dt><dd>{requirement.purchase_by || 'Not confirmed'}</dd></div></dl>
           <div className="client-directory-card-footer"><div>{areaNeedsReview && <Tag color="gold">Area basis needs confirmation</Tag>}{needsReview && <Tag color="gold">Details to clarify</Tag>}{group.total_requirements > 1 && <span className="client-directory-plan-note">{group.total_requirements} independent plans</span>}</div><Button onClick={() => onView(requirement)}>View Client Details <ArrowRightOutlined /></Button></div>
         </div>

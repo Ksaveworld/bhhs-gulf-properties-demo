@@ -7,9 +7,9 @@ import { ensureSalesIdentity } from './helpers';
 test.use({ viewport: { width: 1366, height: 768 } });
 const ids = (page: Page) => page.locator('tr[data-testid^="listing-"]').evaluateAll(rows => rows.map(row => row.getAttribute('data-testid')!.replace('listing-', '')));
 async function ready(page: Page) { await page.goto('/#/properties'); await expect(page.getByTestId('result-count')).toHaveText('8'); }
-async function detail(page: Page, id = 'DEMO-L-001') { await page.getByTestId('listing-' + id).getByRole('button', { name: 'Details ' + id, exact: true }).click(); return page.getByRole('dialog').filter({ has: page.getByRole('tab', { name: 'Price evidence', exact: true }) }); }
+async function detail(page: Page, id = 'DEMO-L-001') { await page.getByTestId('listing-' + id).getByRole('button', { name: /^Open / }).click(); return page.getByRole('dialog').filter({ has: page.getByRole('tab', { name: 'Price evidence', exact: true }) }); }
 
-test('one-frame ranges align and filter live; only property name or arrow opens details; status supports keyboard focus', async ({ page }, info) => {
+test('one-frame ranges align and filter live; only property name opens details; status supports keyboard focus', async ({ page }, info) => {
   await ready(page);
   const filters = page.getByRole('region', { name: 'Property filters', exact: true });
   const price = filters.getByRole('group', { name: 'Price Range (AED)', exact: true }).locator('.pv2-range');
@@ -63,7 +63,8 @@ test('price history keeps one chart and expandable record nodes, separates compa
   await history.getByRole('button', { name: /^Transaction DEMO-T-007:/ }).press('Enter');
   const node = history.locator('details[data-transaction-id="DEMO-T-007"]');
   await expect(node).toHaveAttribute('open', '');
-  await expect(node.getByRole('heading', { name: 'Original Evidence', exact: true })).toBeVisible();
+  await expect(node.getByRole('heading', { name: 'Original Evidence', exact: true })).toHaveCount(0);
+  await expect(node.getByText('Transaction Type', { exact: true })).toBeVisible();
   await expect(node.getByText('Source Date', { exact: true })).toBeVisible();
   await expect(history.getByRole('article', { name: 'Same-property transaction DEMO-T-007', exact: true })).toHaveCount(1);
   await expect(drawer.locator('.pd-comparable-section').getByRole('article', { name: 'Comparable transaction DEMO-T-002', exact: true })).toBeVisible();

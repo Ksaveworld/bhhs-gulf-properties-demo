@@ -8,6 +8,7 @@ import { buildClientGroups } from '../shared/client-priorities';
 import { currentClientRequirements } from '../shared/client-requirement-history';
 import { evaluateMatch } from '../shared/matching';
 import type { ViewingRecord } from '../shared/viewing-records';
+import { clientDisplayName, propertyDisplayName } from '../shared/property-presentation';
 const data=JSON.parse(readFileSync(new URL('../data/demo/dataset.json',import.meta.url),'utf8')) as Dataset;
 test('client viewing history retains non-AED properties independently of the recommendation scope', () => {
   const original = data.client_requirements[0];
@@ -20,8 +21,8 @@ test('client viewing history retains non-AED properties independently of the rec
   };
   const aed = data.listing_snapshots.filter(row => row.currency === 'AED');
   const report = clientSalesReport(original.client_id, [original], [original], [], aed, [record], 'Company', undefined, data.listing_snapshots);
-  assert.ok(report.sections.find(s => s.heading === 'Viewing History')!.lines[0].includes(viewed.building_name || viewed.title));
-  assert.ok(!report.sections.filter(s => ['Best Matches', 'Worth Considering'].includes(s.heading)).flatMap(s => s.lines).join('\n').includes(viewed.building_name || viewed.title));
+  assert.ok(report.sections.find(s => s.heading === 'Viewing History')!.lines[0].includes(propertyDisplayName(viewed)));
+  assert.ok(!report.sections.filter(s => ['Best Matches', 'Worth Considering'].includes(s.heading)).flatMap(s => s.lines).join('\n').includes(propertyDisplayName(viewed)));
   assert.doesNotThrow(() => clientSalesReport(original.client_id, [original], [original], [], aed, [record], 'Company'));
 });
 test('property brief uses eligible own history before comparables, with original values and no excluded clients',()=>{
@@ -31,7 +32,7 @@ test('property brief uses eligible own history before comparables, with original
   assert.equal(r.sections[1].charts?.flatMap(c=>c.points).length,e.history.length);
   for(const {transaction:t} of e.comparables)assert.ok(r.sections[2].lines.some(s=>s.includes(t.source_ref)&&s.includes(String(t.transaction_date))));
   const potential=r.sections.slice(3).flatMap(s=>s.lines).join('\n');
-  for(const g of buildClientGroups(l,data.client_requirements))assert.equal(potential.includes(g.client_alias),g.status!=='excluded');
+  for(const g of buildClientGroups(l,data.client_requirements))assert.equal(potential.includes(clientDisplayName(g.primary.requirement)),g.status!=='excluded');
   assert.ok(!JSON.stringify(r).includes('Hard Conflict'));
 });
 test('client report uses the explicit current revision and preserves original history',()=>{
@@ -41,7 +42,7 @@ test('client report uses the explicit current revision and preserves original hi
   const report=clientSalesReport(original.client_id,current,[original],[copy],data.listing_snapshots,[],'Company');
   assert.ok(report.sections.some(s=>s.heading==='Requirement changes'&&s.lines.some(l=>l.includes('Maximum budget'))));
   const names=report.sections.filter(s=>['Best Matches','Worth Considering'].includes(s.heading)).flatMap(s=>s.lines).join('\n');
-  for(const l of data.listing_snapshots.filter(l=>evaluateMatch(l,changed).status==='excluded'))assert.ok(!names.includes(l.building_name||l.title));
+  for(const l of data.listing_snapshots.filter(l=>evaluateMatch(l,changed).status==='excluded'))assert.ok(!names.includes(propertyDisplayName(l)));
   assert.equal(original.budget_max,data.client_requirements[0].budget_max);
   assert.throws(()=>clientSalesReport('NOT-VISIBLE',current,[original],[copy],[],[],'Private'),/not available/);
 });

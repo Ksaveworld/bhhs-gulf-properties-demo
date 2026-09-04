@@ -12,7 +12,7 @@
 .client-detail-wide { grid-column: 1 / -1; }
 .client-detail-current .ant-alert, .client-detail-viewings > .ant-alert { margin: 12px 0; }
 .client-detail-plan { margin-top: 18px; display: flex; flex-direction: column; gap: 7px; color: var(--muted); font-size: 12px; }
-.client-detail-plan select, .client-detail-viewing-form select, .client-detail-viewing-form input:not([type=checkbox]), .client-detail-viewing-form textarea { width: 100%; min-width: 0; padding: 9px 10px; border: 1px solid #d9d9d9; border-radius: 5px; background: #fff; color: var(--ink); font: inherit; }
+.client-detail-plan select, .client-detail-viewing-form select, .client-detail-viewing-form textarea { width: 100%; min-width: 0; padding: 9px 10px; border: 1px solid #d9d9d9; border-radius: 5px; background: #fff; color: var(--ink); font: inherit; }
 .client-detail-source, .client-detail-history { margin-top: 15px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 5px; color: var(--muted); font-size: 12px; line-height: 1.65; }
 .client-detail-source summary, .client-detail-history summary, .client-detail-viewing-entry summary, .client-detail-demo-tools summary { cursor: pointer; color: var(--wine); }
 .client-detail-source blockquote { margin: 12px 0; padding-left: 12px; border-left: 2px solid var(--line); white-space: pre-wrap; }

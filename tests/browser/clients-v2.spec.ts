@@ -8,7 +8,7 @@ test.use({ viewport: { width: 1366, height: 768 } });
 test.setTimeout(60000);
 const clientId = 'DEMO-C-001';
 const directory = (page: Page) => page.getByRole('region', { name: 'Client directory', exact: true });
-const detail = (page: Page) => page.locator('.client-detail-drawer .ant-drawer-content');
+const detail = (page: Page) => page.locator('.client-detail-drawer.ant-drawer-open .ant-drawer-content');
 const cards = (page: Page) => directory(page).locator('article[data-client-id]');
 const requirementDrafts = (page: Page) => page.evaluate(() => Object.keys(localStorage).filter(key => key.startsWith('bhhs:local-requirements:')).map(key => ({ key, value: localStorage.getItem(key) })));
 async function clients(page: Page) { await page.goto('/#/clients'); await expect(directory(page)).toBeVisible(); }

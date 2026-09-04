@@ -7,7 +7,7 @@ export async function ensureSalesIdentity(page: Page) {
   await expect(identity.or(signIn)).toBeVisible();
   if (await identity.isVisible()) return;
   await signIn.click();
-  const dialog = page.getByRole('dialog', { name: 'Demo sign in', exact: true });
+  const dialog = page.getByRole('dialog', { name: 'Sales sign in', exact: true });
   await dialog.getByRole('textbox', { name: 'Username', exact: true }).fill('Synthetic regression sales');
   await dialog.getByRole('textbox', { name: 'Sales ID', exact: true }).fill('LEGACY-REGRESSION-SALES');
   await dialog.getByRole('button', { name: 'Continue as sales', exact: true }).click();

@@ -1,10 +1,11 @@
 import { createEmptyRequirement } from './assistant';
 import type { ClientRequirement } from './types';
+import { enrichKhalidSources, newRecordedSource, type DemoSource } from './prototype-sources';
+export type { DemoSource } from './prototype-sources';
 
 export type DemoField = { key: string; label: string; value: string; sources: string[] };
-export type DemoSource = { id: string; title: string; meta: string; text: string };
 export type DemoCall = { id: string; points: string; payment: string; ceiling: string; time: string; property: string; attendees: string; commitments: string; duration: number };
-export type DemoProfile = { id: string; name: string; phone: string; fixture: boolean; core: DemoField[]; known: DemoField[]; sources: DemoSource[]; payment: string; paymentSource: string; call?: DemoCall; receipt?: string; updated: string };
+export type DemoProfile = { id: string; name: string; phone: string; fixture: boolean; closedCaseId?: string; core: DemoField[]; known: DemoField[]; sources: DemoSource[]; payment: string; paymentSource: string; call?: DemoCall; receipt?: string; updated: string };
 export const DEMO_CLIENT_ID = 'PROTOTYPE-KHALID';
 export const demoProperties = [
   { id: 'frond-n', name: 'Signature Villa, Frond N', address: 'Palm Jumeirah, Frond N', asking: 22.5, fit: 92, description: 'Ready, private beach, renovated in 2023 in the style from the photos he sent.', gap: 'Four bedrooms — one short of his brief.' },
@@ -17,7 +18,7 @@ export function khalidProfile(): DemoProfile {
     id: DEMO_CLIENT_ID, name: 'Khalid Al Mansouri', phone: '+971 50 •• •• 418', fixture: true, payment: '', paymentSource: '', updated: '12 Mar',
     core: [field('budget', 'Expected price range', 'AED 18–22m', '1'), field('location', 'Preferred location', 'Palm Jumeirah · Fronds K to N', '3', '4'), field('home', 'Home type', 'Villa · 5+ bedrooms', '4'), field('size', 'Size', 'Not stated — to confirm'), field('move', 'Move-in', 'Before the September school term', '1', '3'), field('purpose', 'Purchase purpose', 'Family residence', '1')],
     known: [field('budget-note', 'Budget', 'AED 18–22m, and up to 24m for direct waterfront', '1'), field('where', 'Where', 'Palm Jumeirah, Fronds K to N. Emirates Hills as a fallback', '3', '4'), field('what', 'What', 'Five bedrooms or more, private pool, staff accommodation, four parking', '4'), field('must', 'Non-negotiable', 'Ready property only — nothing off-plan', '2'), field('soft', 'Never said out loud', 'Modern, pale, minimal interiors. Cool on anything heavily classical', '5'), field('why', 'Why and when', 'Family relocation. Wants to be in before the September school term', '1', '3'), field('decides', 'Who decides', 'His wife has the final say on the house. His brother handles the price', '1', '6'), field('signals', 'Buying signals', 'Asked about transfer fees twice, and asked for a second viewing unprompted', '1'), field('holds', 'Holding him back', 'Service charges, and resale liquidity on Frond K', '2')],
-    sources: [
+    sources: enrichKhalidSources([
       { id: '1', title: 'Call recording', meta: '12 Mar · 8:42', text: '“Our budget is 18 to 22 million. If it’s on the water I could stretch to 24. Not for a Frond K villa. We’re moving as a family before the September school term. My wife has the final say. What are the transfer fees again? Can we see it a second time?”' },
       { id: '2', title: 'Call recording', meta: '4 Mar · 5:16', text: '“Ready property only. We can’t wait on a handover with the school term. Please check the service charges. I’m worried about resale on Frond K.”' },
       { id: '3', title: 'WhatsApp thread', meta: '47 messages · to 12 Mar', text: '“Palm Jumeirah, Fronds K to N. My wife wants to see the Frond N one before we talk numbers. We need to move before school starts in September.”' },
@@ -25,7 +26,7 @@ export function khalidProfile(): DemoProfile {
       { id: '5', title: 'Photos from client', meta: '4 images · 7 Mar', text: 'Image observations: pale stone, modern minimal interiors, open kitchen, no heavy classical detailing. Inferred preference, to confirm with the client.' },
       { id: '6', title: 'Your note', meta: '4 Mar', text: 'Brother handles price. Do not put the first offer in writing without him.' },
       { id: '7', title: 'CRM record', meta: '#C-2026-0114 · Created 14 Jan', text: 'Original brief: 4BR apartment, AED 16m ceiling, Dubai Marina. Phone ends 418; WhatsApp contact: Khalid Al Mansouri. Later area of interest: Palm Jumeirah. Retained preference: ready property only.' },
-    ],
+    ]),
   };
 }
 export function profileFromRequirement(req: ClientRequirement): DemoProfile {
@@ -33,7 +34,7 @@ export function profileFromRequirement(req: ClientRequirement): DemoProfile {
   return { id: req.client_id, name: req.client_alias || req.client_id, phone: '', fixture: false, payment: '', paymentSource: '', updated: req.captured_at.slice(0, 10),
     core: [field('budget', 'Expected price range', `${req.currency || ''} ${amount(req.budget_min)} – ${amount(req.budget_max)}`, 'record'), field('location', 'Preferred location', req.preferred_areas?.join(', ') || 'To confirm', 'record'), field('home', 'Home type', `${req.property_types?.join(', ') || 'To confirm'} · ${req.bedrooms_min ?? '?'}+ bedrooms`, 'record'), field('size', 'Size', `${amount(req.area_min)} – ${amount(req.area_max)} ${req.area_unit || ''}`, 'record'), field('move', 'Move-in', req.move_in_by || 'To confirm', 'record'), field('purpose', 'Purchase purpose', req.purchase_purpose.replaceAll('_', ' '), 'record')],
     known: [field('must', 'Non-negotiable', req.hard_constraints || 'To confirm', 'record'), field('soft', 'Preferences', req.soft_preferences || 'To confirm', 'record'), field('signals', 'Buying signals', req.intent_evidence || 'To confirm', 'record')],
-    sources: [{ id: 'record', title: req.source_name || 'Current client record', meta: req.source_date || req.captured_at.slice(0, 10), text: req.raw_request || 'No source text supplied.' }],
+    sources: [{ id: 'record', title: req.source_name || 'Current client record', meta: req.source_date || req.captured_at.slice(0, 10), text: req.raw_request || 'No source text supplied.', kind: 'crm', occurredAt: req.captured_at, enteredAt: req.captured_at, enteredBy: req.reviewed_by || 'Not recorded', channel: 'Client record import', synthetic: req.data_kind === 'demo', original: { crm: { createdAt: req.captured_at, createdBy: req.reviewed_by || 'Not recorded', fields: { 'Client ID': req.client_id, 'Client name': req.client_alias || 'Not supplied', 'Budget minimum': amount(req.budget_min), 'Budget maximum': amount(req.budget_max), 'Currency': req.currency || 'Not supplied', 'Location': req.preferred_areas?.join(', ') || 'Not supplied', 'Property type': req.property_types?.join(', ') || 'Not supplied', 'Source': req.source_name } } } }],
   };
 }
 export function demoRequirement(profile: DemoProfile): ClientRequirement {
@@ -83,6 +84,6 @@ export function saveDemoCall(profile: DemoProfile, call: DemoCall): DemoProfile 
   return { ...profile, payment: call.payment, paymentSource: call.payment ? source : '', call: { ...call }, updated: 'Just now', receipt: undefined,
     core: profile.core.map(f => f.key === 'budget' && call.ceiling ? { ...f, value: `Up to ${call.ceiling}`, sources: [source] } : f),
     known: profile.known.map(f => f.key === 'budget-note' && call.ceiling ? { ...f, value: `Firm ceiling: ${call.ceiling}`, sources: [source] } : f),
-    sources: [{ id: source, title: 'Outbound call · you', meta: 'Just now · from this call', text }, ...profile.sources],
+    sources: [{ ...newRecordedSource(source, 'Outbound call · you', text, 'call', profile.fixture), original: { duration: `${Math.floor(call.duration / 60)}:${String(call.duration % 60).padStart(2, '0')}`, participants: [profile.name, 'Sales adviser'], transcript: [{ time: '00:00', author: 'Reviewed demo call record', text, key: true }] } }, ...profile.sources],
   };
 }

@@ -1,0 +1,48 @@
+.proto-sources>h2 { display:flex; justify-content:space-between; }
+.source-group { margin:5px 0; }
+.proto button.source-group-toggle { width:100%; display:flex; justify-content:space-between; gap:12px; padding:12px 2px; font-size:13px; }
+.source-group-toggle b { color:#847c81; font-size:12px; font-weight:500; }
+.source-material-row { display:flex; gap:2px; align-items:flex-start; margin:4px 0 8px 5px; }
+.source-material-row>.proto-source { flex:1; min-width:0; }
+.proto .source-material-row>.proto-source { padding:10px 8px; }
+.source-material-row .proto-source time { display:block; font-size:11px; color:#847c81; margin-bottom:5px; }
+.source-material-row .proto-source b { font-size:12px; }
+.source-material-row .proto-source q { font-size:13px; }
+.proto button.source-original-arrow { flex:0 0 26px; padding:8px 2px; font-size:17px; color:#552448; }
+.source-original-arrow:hover { background:#f8eff4; border-radius:5px; }
+.material-ingress h2 { font-family:'Source Serif 4',Georgia,serif; font-size:25px; color:#3f1b33; margin:0 0 10px; }
+.material-ingress p { font-size:12px; font-weight:400; line-height:1.6; margin:0 0 7px; }
+.material-ingress small { display:block; font-size:11px; font-weight:400; color:#847c81; }
+.source-material-drawer .ant-drawer-header { background:#f8f5f7; }
+.source-material-drawer .ant-drawer-body { padding:28px 36px; }
+.material-original { font:14px/1.8 Inter,'Segoe UI',sans-serif; color:#2b272a; }
+.material-original h3 { font:600 22px 'Source Serif 4',Georgia,serif; color:#3f1b33; margin:28px 0 16px; }
+.material-caption { color:#847c81; font-size:12px; }
+.material-metadata,.material-crm-fields { margin:0; }
+.material-metadata>div,.material-crm-fields>div { display:grid; grid-template-columns:110px minmax(0,1fr); gap:16px; padding:9px 0; border-bottom:1px solid #f1eff0; }
+.material-metadata dt,.material-crm-fields dt { color:#847c81; font-size:12px; }
+.material-metadata dd,.material-crm-fields dd { margin:0; overflow-wrap:anywhere; }
+.material-transcript { list-style:none; padding:0 14px 0 0; margin:0; max-height:56vh; overflow:auto; }
+.material-transcript li { margin:0 0 22px; white-space:pre-wrap; }
+.material-transcript li>div { display:flex; gap:14px; font-size:12px; margin-bottom:7px; color:#847c81; }
+.material-transcript mark { background:#f2e4ed; color:#3f1b33; padding:2px 0; line-height:2; }
+.material-transcript p { margin:0; }
+.material-chat { display:flex; flex-direction:column; gap:18px; max-height:62vh; overflow:auto; padding:18px; background:#f4f3f3; border-radius:8px; }
+.material-chat article { max-width:85%; padding:12px 16px; background:#fff; border-radius:10px; align-self:flex-start; }
+.material-chat article.sales { align-self:flex-end; background:#f4e8ef; }
+.material-chat article header { font-size:11px; color:#847c81; }
+.material-chat article time { display:block; }
+.material-chat article p { margin:6px 0 0; }
+.material-body,.material-attachment pre { white-space:pre-wrap; overflow-wrap:anywhere; font:inherit; padding:22px; background:#faf8f9; border-radius:6px; }
+.material-attachment { border-top:1px solid #e9e6e8; padding:12px 0; }
+.material-attachment summary { color:#552448; cursor:pointer; }
+.material-photo-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; }
+.material-photo-grid button { display:block; border:1px solid #e9e6e8; border-radius:8px; background:#fff; padding:8px; text-align:left; cursor:pointer; }
+.material-photo-grid button[aria-pressed=true] { border-color:#552448; box-shadow:0 0 0 1px #552448; }
+.material-photo { display:block; width:100%; aspect-ratio:1; overflow:hidden; position:relative; background:#f4f3f3; }
+.material-photo img { position:absolute; width:200%; height:200%; max-width:none; }
+.material-photo-grid b { display:block; font-size:13px; margin-top:10px; }
+.material-photo-grid small { display:block; font-size:11px; color:#847c81; }
+.material-photo-large { margin:30px 0 20px; }
+.material-photo-large figcaption { font-size:12px; color:#847c81; margin-top:8px; }
+@media (max-width:600px) { .source-material-drawer .ant-drawer-body { padding:20px; } .material-metadata>div,.material-crm-fields>div { grid-template-columns:85px minmax(0,1fr); gap:10px; } .material-photo-grid { gap:12px; } }

@@ -3,6 +3,7 @@ import { Button, Drawer, Input, Modal } from 'antd';
 import { AudioOutlined, MessageOutlined, MailOutlined, PictureOutlined, ArrowRightOutlined } from '@ant-design/icons';
 import { DEMO_CLIENT_ID, khalidProfile, type DemoProfile } from '../../../../shared/prototype-demo';
 import './prototype-workspace.css';
+import { newRecordedSource } from '../../../../shared/prototype-sources';
 
 type Props = { profiles: DemoProfile[]; onChange: (profile: DemoProfile) => void; onOpen: (id: string) => void; quickTools: ReactNode };
 const reading = [
@@ -34,7 +35,7 @@ export function PrototypeHome({ profiles, onChange, onOpen, quickTools }: Props)
   function create() {
     const next = { ...khalidProfile(), id: `PROTOTYPE-${crypto.randomUUID()}`, name: newName.trim() || 'New client', phone, updated: 'Just now' };
     if (newOpen === 'intake') confirmIdentity(next, `Created a separate client: ${next.name}`);
-    else { next.fixture = false; next.core = next.core.map(f => ({ ...f, value: 'To confirm', sources: [] })); next.known = []; next.sources = [{ id: 'created', title: 'Sales entry', meta: 'Just now', text: `Name: ${next.name}\nPhone: ${phone}` }]; onChange(next); onOpen(next.id); }
+    else { next.fixture = false; next.core = next.core.map(f => ({ ...f, value: 'To confirm', sources: [] })); next.known = []; next.sources = [newRecordedSource('created', 'Sales entry', `Name: ${next.name}\nPhone: ${phone}`)]; onChange(next); onOpen(next.id); }
     setNewOpen(null);
   }
   function choose(key: string, value: 'new' | 'crm') {
@@ -47,7 +48,7 @@ export function PrototypeHome({ profiles, onChange, onOpen, quickTools }: Props)
     const next: DemoProfile = { ...confirmed, payment: value, paymentSource: value ? source : '', updated: 'Just now',
       core: confirmed.core.map(f => f.key === 'budget' && choices.budget === 'crm' ? { ...f, value: 'Up to AED 16m', sources: ['7'] } : f.key === 'home' && choices.home === 'crm' ? { ...f, value: 'Apartment · 4 bedrooms', sources: ['7'] } : f),
       known: confirmed.known.map(f => f.key === 'budget-note' && choices.budget === 'crm' ? { ...f, value: 'CRM ceiling retained: AED 16m. Material proposes AED 18–22m.', sources: ['7', '1'] } : f.key === 'what' && choices.home === 'crm' ? { ...f, value: 'CRM apartment brief retained; the proposed villa preference was not adopted.', sources: ['7', '4'] } : f),
-      sources: [...confirmed.sources, { id: source, title: 'Sales confirmation', meta: 'Just now', text: `${identity}\nBudget: ${choices.budget === 'new' ? 'Adopt new information: AED 18–22m' : 'Keep CRM: AED 16m'}\nProperty type: ${choices.home === 'new' ? 'Adopt new information: villa' : 'Keep CRM: apartment'}\nPayment: ${value || 'Confirm later in the call'}${notes ? `\nSubmitted sales note (not part of the preset extraction): ${notes}` : ''}` }],
+      sources: [...confirmed.sources, newRecordedSource(source, 'Sales confirmation', `${identity}\nBudget: ${choices.budget === 'new' ? 'Adopt new information: AED 18–22m' : 'Keep CRM: AED 16m'}\nProperty type: ${choices.home === 'new' ? 'Adopt new information: villa' : 'Keep CRM: apartment'}\nPayment: ${value || 'Confirm later in the call'}${notes ? `\nSubmitted sales note (not part of the preset extraction): ${notes}` : ''}`, 'note', confirmed.fixture)],
     };
     onChange(next); setDraft(next); setPaymentDecision(value || 'Confirm later in the call'); setStage(5);
   }

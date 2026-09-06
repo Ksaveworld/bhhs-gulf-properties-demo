@@ -6,7 +6,7 @@ test('call changes stay drafts until save and saved edits, source and booking fi
   const before = khalidProfile();
   const call = { ...freshDemoCall(), payment: 'Mortgage, approval pending', ceiling: 'AED 21m', time: 'Sunday 10:00', property: 'frond-k', commitments: 'Send floor plan on Friday.' };
   assert.equal(before.payment, '');
-  assert.equal(before.sources.length, 7);
+  assert.equal(before.sources.length, 9);
   const after = saveDemoCall(before, call);
   assert.equal(after.payment, call.payment);
   assert.equal(after.core.find(f => f.key === 'budget')?.value, 'Up to AED 21m');
@@ -14,13 +14,13 @@ test('call changes stay drafts until save and saved edits, source and booking fi
   assert.match(after.sources[0].text, /Mortgage, approval pending/);
   assert.match(after.sources[0].text, /Garden Home, Frond K/);
   assert.match(after.sources[0].text, /Send floor plan on Friday/);
-  assert.equal(before.sources.length, 7);
+  assert.equal(before.sources.length, 9);
 });
 
 test('repeated saves retain previous calls and a cleared payment remains unknown', () => {
   const first = saveDemoCall(khalidProfile(), freshDemoCall());
   const second = saveDemoCall(first, { ...freshDemoCall(), payment: '' });
-  assert.equal(second.sources.length, 9);
+  assert.equal(second.sources.length, 11);
   assert.equal(second.paymentSource, '');
   assert.equal(second.payment, '');
   assert.equal(second.sources[1].id, first.sources[0].id);

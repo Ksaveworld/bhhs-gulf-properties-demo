@@ -41,7 +41,7 @@ export function demoRequirement(profile: DemoProfile): ClientRequirement {
   const numbers = get('budget').replaceAll(',', '').match(/\d+(?:\.\d+)?/g)?.map(Number) || [];
   const multiplier = /m\b/i.test(get('budget')) ? 1e6 : 1;
   return { ...createEmptyRequirement('Fictional scenario supplied in the BHHS HTML and modification plan.'), client_id: profile.id, requirement_id: `${profile.id}-REQ`, client_alias: profile.name,
-    budget_min: numbers.length > 1 ? numbers[0] * multiplier : null, budget_max: numbers.length ? numbers.at(-1)! * multiplier : null, currency: 'AED', budget_constraint: 'hard', preferred_areas: [get('location')], property_types: /apartment/i.test(get('home')) ? ['apartment'] : ['villa'], bedrooms_min: 5, purchase_purpose: 'self_use', source_name: 'Fictional HTML prototype', source_ref: 'bhhs-agent-demo.html', notes: 'Demo scenario only. All figures are illustrative presets.' };
+    budget_min: numbers.length > 1 ? numbers[0] * multiplier : null, budget_max: numbers.length ? numbers.at(-1)! * multiplier : null, currency: 'AED', budget_constraint: 'hard', preferred_areas: [get('location')], property_types: /apartment/i.test(get('home')) ? ['apartment'] : /villa/i.test(get('home')) ? ['villa'] : null, bedrooms_min: Number(get('home').match(/\d+/)?.[0]) || null, purchase_purpose: /family|residence/i.test(get('purpose')) ? 'self_use' : 'unknown', source_name: 'Fictional HTML prototype', source_ref: 'bhhs-agent-demo.html', notes: 'Demo scenario only. All figures are illustrative presets.' };
 }
 
 /** Apply only the fields explicitly changed in the simple form; untouched dataset values survive. */

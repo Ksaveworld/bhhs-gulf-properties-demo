@@ -15,8 +15,12 @@ import {
 import { clientBudgetLabel } from './ClientDirectory';
 import { EnglishDateInput, isValidEnglishDateValue } from './EnglishDateInput';
 import '../client-detail.css';
+import { PrototypeClient } from './PrototypeClient';
+import { profileFromRequirement, requirementWithProfile, type DemoProfile } from '../../../../shared/prototype-demo';
 
 export interface ClientDetailProps {
+  profiles?: Record<string, DemoProfile>;
+  onProfileChange?: (id: string, profile: DemoProfile) => void;
   clientId: string | null;
   open?: boolean;
   requirements: ClientRequirement[];
@@ -63,8 +67,12 @@ function ClientDetailWorkspace(props: ClientDetailProps) {
     const time = (row: ClientRequirement) => Date.parse(copies.find(copy => copy.requirement.requirement_id === row.requirement_id)?.saved_at ?? row.captured_at);
     return time(b) - time(a) || b.requirement_id.localeCompare(a.requirement_id);
   }), [requirements, copies, clientId]);
+  const [profileEdit, setProfileEdit] = useState<DemoProfile | null>(null);
   const [planId, setPlanId] = useState('');
-  const requirement = plans.find(row => row.requirement_id === planId) ?? plans[0];
+  const originalRequirement = plans.find(row => row.requirement_id === planId) ?? plans[0];
+  const profileKey = originalRequirement?.requirement_id ?? '';
+  const editedProfile = props.profiles?.[profileKey] ?? profileEdit;
+  const requirement = originalRequirement && editedProfile?.id === originalRequirement.client_id ? requirementWithProfile(originalRequirement, editedProfile) : originalRequirement;
   const visibility = requirement ? getVisibility?.(requirement.requirement_id) ?? (originals.some(row => row.client_id === clientId) ? 'company' : salesId ? 'private' : 'legacy') : 'company';
   const access = useMemo<ViewingAccess>(() => ({ scope: storageScope, salesId, requirements, listings: viewingListings }), [storageScope, salesId, requirements, viewingListings]);
   const [stored, setStored] = useState<StoredViewingRecords | null>(null);
@@ -172,9 +180,11 @@ function ClientDetailWorkspace(props: ClientDetailProps) {
     {requirement?.data_kind === 'demo' && <details className="client-detail-demo-tools"><summary>Viewing Examples</summary><p>Optional fictional viewing records for this client.</p><Button disabled={!canWrite || records.some(row => row.source_kind === 'fictional_example')} onClick={examples}>Load Fictional Viewings</Button></details>}
   </section>;
 
-  return <Drawer open={props.open ?? !!clientId} onClose={onClose} width={840} rootClassName="client-detail-drawer" title={<div className="client-detail-title"><strong>{requirement ? clientDisplayName(requirement) : 'Client Details'}</strong><div><span>{clientId}</span><Tag>{CLIENT_VISIBILITY_LABELS[visibility]}</Tag>{visibility === 'private' && <span>Sales ID: {salesId || 'Not supplied'}</span>}</div></div>} extra={<Button disabled={!requirement || !clientId} onClick={() => clientId && requirement && onExport(clientId, requirement.requirement_id)}>Export Report</Button>}>
-    <Tabs defaultActiveKey="recommended" items={[{ key: 'recommended', label: 'Recommended Properties', children: recommendationTab }, { key: 'viewings', label: 'Viewing History', children: viewingTab }]} />
-  </Drawer>;
+  if (!requirement) return <Drawer open={props.open} onClose={onClose} title="Client unavailable"><Empty description="This client is not available in the current data and Sales ID." /></Drawer>;
+  const currentProfile = editedProfile?.id === requirement.client_id ? editedProfile : profileFromRequirement(requirement);
+  return <PrototypeClient open={props.open} profile={currentProfile} onChange={profile => { if (props.onProfileChange) props.onProfileChange(profileKey, profile); else setProfileEdit(profile); }} onClose={onClose} recommendations={<>{matches.filter(m => m.result.status !== 'excluded').slice(0, 3).map(({ listing, result }) => <article className="proto-existing-property" key={listing.listing_id}><h3>{propertyDisplayName(listing)}</h3><p>{money(listing.asking_price, listing.currency)}</p><p>{result.matched.join(' · ')}</p><p>{[...result.conflicts, ...result.unknowns].join(' · ')}</p><Button onClick={() => onOpenProperty(listing.listing_id)}>View Property Details</Button></article>)}</>}>
+    <details className="proto-record-tools"><summary>Client records and viewing history</summary><Button onClick={() => onExport(clientId!, requirement.requirement_id)}>Export Report</Button><Tabs defaultActiveKey="recommended" items={[{ key: 'recommended', label: 'Recommended Properties', children: recommendationTab }, { key: 'viewings', label: 'Viewing History', children: viewingTab }]} /></details>
+  </PrototypeClient>;
 }
 
 /** Scope and identity changes discard the previous client's viewing drafts synchronously. */

@@ -15,6 +15,7 @@ import { parseWorkspaceRoute, workspaceRouteHash, pushDetail, popDetail, type De
 import { HomeWorkspace } from './components/HomeWorkspace';
 import { PrototypeHome } from './components/PrototypeHome';
 import { PrototypeClient } from './components/PrototypeClient';
+import { closedClientProfiles } from '../../../shared/prototype-cases';
 import { demoRequirement, khalidProfile, profileFromRequirement, type DemoProfile } from '../../../shared/prototype-demo';
 import { ClientRequirementEditor } from './components/ClientRequirementEditor';
 import { PropertyDetail } from './components/PropertyDetail';
@@ -33,7 +34,7 @@ const headings: Record<Route['page'], [
 ]> = { home: ['Your client. Their next home.', ''], properties: ['Property library', 'Explore listings, price evidence and potential clients.'], clients: ['Clients & needs', 'Review current requirements, recommended properties and viewing feedback.'] };
 export function App() {
     const [clientProfiles, setClientProfiles] = useState<Record<string, DemoProfile>>({});
-    const [demoProfiles, setDemoProfiles] = useState<DemoProfile[]>(() => [khalidProfile()]);
+    const [demoProfiles, setDemoProfiles] = useState<DemoProfile[]>(() => [khalidProfile(), ...closedClientProfiles()]);
     function updateDemo(profile: DemoProfile) { setDemoProfiles(all => all.some(p => p.id === profile.id) ? all.map(p => p.id === profile.id ? profile : p) : [...all, profile]); }
     const [dataset, setDataset] = useState<Dataset | null>(null), [busy, setBusy] = useState(true), [error, setError] = useState('');
     const [route, setRoute] = useState<Route>(readRoute), [filters, setFilters] = useState<Filters>({ ...EMPTY_FILTERS });
@@ -66,7 +67,7 @@ export function App() {
         setReport(null); setReportError('');
         // The first sign-in resumes the visible guest flow; switching owners clears private context.
         if (previous && previous.sales_id !== next?.sales_id) {
-            setClientProfiles({}); setDemoProfiles([khalidProfile()]); setHomeVersion(v => v + 1); setHomeTask('property'); setCreateOpen(false);
+            setClientProfiles({}); setDemoProfiles([khalidProfile(), ...closedClientProfiles()]); setHomeVersion(v => v + 1); setHomeTask('property'); setCreateOpen(false);
             setReviewTarget(null); setEditDraft(null); setSearchRequirement(null);
             setFilters({ ...EMPTY_FILTERS }); setClientFilters({ ...EMPTY_CLIENT_DIRECTORY_FILTERS });
             navigate({ page: 'home', details: [] });
@@ -127,7 +128,7 @@ export function App() {
         setViewingError((reason as Error).message);
     } } read(); window.addEventListener('storage', read); window.addEventListener('bhhs:viewings-changed', read); return () => { window.removeEventListener('storage', read); window.removeEventListener('bhhs:viewings-changed', read); }; }, [local.key, identity?.sales_id, requirements, sourceListings]);
     const visibleViewings = viewings.key === local.key ? viewings.records : [];
-    function visibility(id: string) { const demo = demoProfiles.find(p => `${p.id}-REQ` === id); if (demo) return demo.fixture ? 'company' as const : 'private' as const; const req = requirements.find(r => r.requirement_id === id) ?? localById.get(id)?.requirement; if (req && dataset?.client_requirements.some(r => r.client_id === req.client_id))
+    function visibility(id: string) { const demo = demoProfiles.find(p => `${p.id}-REQ` === id); if (demo) return demo.fixture || demo.closedCaseId ? 'company' as const : 'private' as const; const req = requirements.find(r => r.requirement_id === id) ?? localById.get(id)?.requirement; if (req && dataset?.client_requirements.some(r => r.client_id === req.client_id))
         return 'company' as const; return identity ? 'private' as const : 'legacy' as const; }
     function viewClient(req: ClientRequirement) { openDetail({ kind: 'client', id: req.client_id }); }
     function openEdit(req: ClientRequirement, feedback?: string) { setReviewTarget(req); setEditDraft(feedback ? { ...req, soft_preferences: [req.soft_preferences, feedback].filter(Boolean).join('\n') } : req); }
@@ -213,7 +214,7 @@ export function App() {
         {local.error && <Alert data-testid="local-storage-error" type="error" message="Browser saving needs attention" description={local.error} action={<Button onClick={local.retry}>Retry local storage</Button>}/>}
         {reportError && <Alert type="error" closable onClose={() => setReportError('')} message={reportError}/>}
         {route.page !== 'home' && <div className="local-storage-notice" data-testid="local-storage-notice" role="status">{local.loading ? 'Loading browser copies…' : `${local.copies.length} saved browser copies · Current browser and data version${identity ? ` · ${identity.sales_id}` : ''}`}</div>}
-        <div hidden={route.page !== 'home'}><PrototypeHome key={`${homeVersion}:${dataset.meta.storage_namespace}`} profiles={[...demoProfiles, ...requirements.filter((r, i, all) => all.findIndex(v => v.client_id === r.client_id) === i).map(profileFromRequirement)]} onChange={updateDemo} onOpen={id => navigate({ page: 'clients', details: [{ kind: 'client', id }] })} quickTools={<HomeWorkspace initialTask={homeTask} areas={areas} canSave={!!identity && !local.loading} onSignIn={openSignIn} onFindProperties={(next, req) => { setFilters(next); setSearchRequirement(req); navigate({ page: 'properties', details: [] }); }} onFindClients={next => { setClientFilters(next); navigate({ page: 'clients', details: [] }); }} onCreateClient={req => saveRequirement(req, null)}/>} /></div>
+        <div hidden={route.page !== 'home'}><PrototypeHome key={`${homeVersion}:${dataset.meta.storage_namespace}`} profiles={[...demoProfiles.filter(p => !p.closedCaseId), ...requirements.filter((r, i, all) => all.findIndex(v => v.client_id === r.client_id) === i).map(profileFromRequirement)]} onChange={updateDemo} onOpen={id => navigate({ page: 'clients', details: [{ kind: 'client', id }] })} quickTools={<HomeWorkspace initialTask={homeTask} areas={areas} canSave={!!identity && !local.loading} onSignIn={openSignIn} onFindProperties={(next, req) => { setFilters(next); setSearchRequirement(req); navigate({ page: 'properties', details: [] }); }} onFindClients={next => { setClientFilters(next); navigate({ page: 'clients', details: [] }); }} onCreateClient={req => saveRequirement(req, null)}/>} /></div>
         {route.page === 'properties' && <>{searchRequirement && homeReviewQuestions(searchRequirement).length > 0 && <Alert type="warning" message="Search conditions to clarify" description={<details><summary>Review open questions</summary><ul>{homeReviewQuestions(searchRequirement).map((q, i) => <li key={i}>{q}</li>)}</ul><p>{searchRequirement.raw_request}</p></details>}/>}<PropertyLibrary listings={listings} filters={filters} onFilter={setFilters} active={searchRequirement} onOpen={id => openDetail({ kind: 'listing', id })} onReset={reset}/></>}
         {route.page === 'clients' && <ClientDirectory requirements={[...demoProfiles.map(demoRequirement), ...requirements]} listings={listings} filters={clientFilters} onFiltersChange={setClientFilters} getVisibility={visibility} onView={viewClient} onAddPrivate={addPrivate} canAddPrivate={!!identity} renderLocalControls={localControls}/>}
       </>}
@@ -221,7 +222,7 @@ export function App() {
     {dataset && !busy && route.details.map((target, index) => {
         const open = index === route.details.length - 1;
         const key = `${dataset.meta.storage_namespace}:${index}:${target.kind}:${target.id}`;
-        if (target.kind === 'client' && demoProfiles.some(p => p.id === target.id)) return <PrototypeClient key={key} open={open} profile={demoProfiles.find(p => p.id === target.id)!} onChange={updateDemo} onClose={closeDetail}/>;
+        if (target.kind === 'client' && demoProfiles.some(p => p.id === target.id)) return <PrototypeClient key={key} open={open} profile={demoProfiles.find(p => p.id === target.id)!} onChange={updateDemo} onClose={closeDetail} onHome={() => navigate({ page: 'home', details: [] })} onOpenClient={id => openDetail({ kind: 'client', id })}/>;
         if (target.kind === 'client') return <ClientDetail profiles={clientProfiles} onProfileChange={(id, profile) => setClientProfiles(all => ({ ...all, [id]: profile }))} key={key} open={open} clientId={target.id} requirements={requirements} originals={dataset.client_requirements} copies={local.copies} listings={listings} viewingListings={sourceListings} salesId={identity?.sales_id ?? null} storageScope={local.key} getVisibility={visibility} onClose={closeDetail} onOpenProperty={id => openDetail({ kind: 'listing', id })} onEdit={req => openEdit(req)} onExport={exportClient} renderLocalControls={localControls} onUseFeedback={(req, feedback) => openEdit(req, feedback)}/>;
         const listing = sourceListings.find(row => row.listing_id === target.id) ?? null;
         if (!listing) return <Drawer key={key} open={open} title="Property unavailable" onClose={closeDetail}><Alert type="warning" message="This property is not available in the current data version."/><Button onClick={closeDetail}>Back to previous view</Button></Drawer>;

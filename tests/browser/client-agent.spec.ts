@@ -78,7 +78,7 @@ test('hangup generates editable summary automatically; discard does not mutate; 
   const writes: string[] = []; page.on('request', r => { if (!['GET', 'HEAD'].includes(r.method())) writes.push(r.url()); });
   await openKhalid(page); await callSummary(page);
   await page.getByRole('button', { name: 'Discard', exact: true }).click();
-  await expect(page.locator('.proto-source')).toHaveCount(7); await expect(page.getByTestId('payment-risk')).toHaveCount(1);
+  await expect(page.locator('.proto-source')).toHaveCount(9); await expect(page.getByTestId('payment-risk')).toHaveCount(1);
   await callSummary(page);
   await page.getByLabel('Communication points').fill('Mortgage is now confirmed. Discussed a different viewing.');
   await page.getByLabel('Call Payment', { exact: true }).fill('Mortgage, approval pending');

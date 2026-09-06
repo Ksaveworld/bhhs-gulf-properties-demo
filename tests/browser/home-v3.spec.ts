@@ -16,6 +16,8 @@ async function prepareCreate(page: Page) {
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
+  await ensureSalesIdentity(page);
+  await page.getByRole('button', { name: 'Quick tools', exact: true }).click();
   await expect(workspace(page)).toBeVisible();
 });
 

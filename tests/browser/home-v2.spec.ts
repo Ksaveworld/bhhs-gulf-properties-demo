@@ -12,6 +12,8 @@ test.beforeEach(async ({ page }) => {
   pageErrors.set(page, []);
   page.on('pageerror', error => pageErrors.get(page)!.push(error.message));
   await page.goto('/');
+  await ensureSalesIdentity(page);
+  await page.getByRole('button', { name: 'Quick tools', exact: true }).click();
   await expect(home(page)).toBeVisible();
 });
 
@@ -29,6 +31,7 @@ async function prepare(page: Page, text: string) {
 }
 async function goHome(page: Page) {
   await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: /\bHome$/ }).click();
+  await page.getByRole('button', { name: 'Quick tools', exact: true }).click();
   await expect(home(page)).toBeVisible();
 }
 async function visibleListingIds(page: Page) {
@@ -83,6 +86,7 @@ test('find-client accepts one condition and lands in a filtered directory withou
 
 test('Add Private Client opens creation, requires confirmation, Back edits, and restores the client after reload', async ({ page }) => {
   await ensureSalesIdentity(page);
+  await page.getByRole('dialog', { name: 'Quick tools', exact: true }).getByRole('button', { name: 'Close', exact: true }).click();
   await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: /Clients & needs/ }).click();
   await page.getByRole('button', { name: /Add Private Client$/ }).click();
   await expect(home(page)).toBeVisible();

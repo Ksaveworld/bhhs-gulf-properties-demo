@@ -13,6 +13,7 @@ import { clientSalesReport, propertySalesReport, type SalesReport } from '../../
 import { homeReviewQuestions, type HomeTask } from '../../../shared/home-tasks';
 import { parseWorkspaceRoute, workspaceRouteHash, pushDetail, popDetail, type DetailTarget, type WorkspaceRoute } from '../../../shared/detail-navigation';
 import { HomeWorkspace } from './components/HomeWorkspace';
+import { ClientAgentWorkspace } from './components/ClientAgentWorkspace';
 import { ClientRequirementEditor } from './components/ClientRequirementEditor';
 import { PropertyDetail } from './components/PropertyDetail';
 import { PropertyLibrary } from './components/PropertyLibrary';
@@ -139,7 +140,7 @@ export function App() {
     catch (reason) {
         setIdentityError((reason as Error).message);
     } }
-    async function saveRequirement(draft: ClientRequirement, target: ClientRequirement | null) {
+    async function saveRequirement(draft: ClientRequirement, target: ClientRequirement | null, onSaved?: (saved: ClientRequirement) => void) {
         const owner = identity?.sales_id;
         if (!owner)
             throw new Error('Sign in before saving a client requirement.');
@@ -150,6 +151,7 @@ export function App() {
         await local.save({ requirement: req, original_requirement_id: original, parent_requirement_id: target?.requirement_id ?? null, saved_at: new Date().toISOString(), ...(target ? { edit_kind: 'revision' as const } : {}) });
         if (identityRef.current?.sales_id !== owner)
             throw new Error('The sales identity changed. Open the saved client under its owner.');
+        onSaved?.(req);
         if (!target) {
             setCreateOpen(false);
             if (route.page === 'home') {
@@ -206,7 +208,7 @@ export function App() {
         {local.error && <Alert data-testid="local-storage-error" type="error" message="Browser saving needs attention" description={local.error} action={<Button onClick={local.retry}>Retry local storage</Button>}/>}
         {reportError && <Alert type="error" closable onClose={() => setReportError('')} message={reportError}/>}
         {route.page !== 'home' && <div className="local-storage-notice" data-testid="local-storage-notice" role="status">{local.loading ? 'Loading browser copies…' : `${local.copies.length} saved browser copies · Current browser and data version${identity ? ` · ${identity.sales_id}` : ''}`}</div>}
-        {route.page === 'home' && <HomeWorkspace key={`${homeVersion}:${dataset.meta.storage_namespace}`} initialTask={homeTask} areas={areas} canSave={!!identity && !local.loading} onSignIn={openSignIn} onFindProperties={(next, req) => { setFilters(next); setSearchRequirement(req); navigate({ page: 'properties', details: [] }); }} onFindClients={next => { setClientFilters(next); navigate({ page: 'clients', details: [] }); }} onCreateClient={req => saveRequirement(req, null)}/>}
+        {route.page === 'home' && <ClientAgentWorkspace key={`${homeVersion}:${dataset.meta.storage_namespace}`} areas={areas} listings={listings} requirements={requirements} canSave={!!identity && !local.loading} onSignIn={openSignIn} onSave={saveRequirement} onOpenProperty={id => openDetail({ kind: 'listing', id })} onOpenClient={viewClient} quickTools={<HomeWorkspace initialTask={homeTask} areas={areas} canSave={!!identity && !local.loading} onSignIn={openSignIn} onFindProperties={(next, req) => { setFilters(next); setSearchRequirement(req); navigate({ page: 'properties', details: [] }); }} onFindClients={next => { setClientFilters(next); navigate({ page: 'clients', details: [] }); }} onCreateClient={req => saveRequirement(req, null)}/>} />}
         {route.page === 'properties' && <>{searchRequirement && homeReviewQuestions(searchRequirement).length > 0 && <Alert type="warning" message="Search conditions to clarify" description={<details><summary>Review open questions</summary><ul>{homeReviewQuestions(searchRequirement).map((q, i) => <li key={i}>{q}</li>)}</ul><p>{searchRequirement.raw_request}</p></details>}/>}<PropertyLibrary listings={listings} filters={filters} onFilter={setFilters} active={searchRequirement} onOpen={id => openDetail({ kind: 'listing', id })} onReset={reset}/></>}
         {route.page === 'clients' && <ClientDirectory requirements={requirements} listings={listings} filters={clientFilters} onFiltersChange={setClientFilters} getVisibility={visibility} onView={viewClient} onAddPrivate={addPrivate} canAddPrivate={!!identity} renderLocalControls={localControls}/>}
       </>}

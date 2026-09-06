@@ -155,7 +155,7 @@ test('old unowned browser copies stay available separately and are not reassigne
 });
 
 test('first sign-in retains the guest draft but A/B switches and sign-out clear unsaved notes while saved copies remain owner scoped', async ({ page, request, context }) => {
-  await fixture(context, request, 'identity'); await page.goto('/'); const notes = home(page).getByRole('textbox', { name: 'Sales conversation / notes', exact: true });
+  await fixture(context, request, 'identity'); await page.goto('/'); const notes = page.getByRole('textbox', { name: 'Client material', exact: true });
   await notes.fill('Synthetic guest draft retained on first sign-in.'); await signIn(page); await expect(notes).toHaveValue('Synthetic guest draft retained on first sign-in.');
   await openClient(page); const id = await saveEdit(page, '2500000'); await drawer(page).getByRole('button', { name: 'Close', exact: true }).click(); await page.goto('/');
   await notes.fill('Synthetic A confidential unsaved draft.'); await signIn(page, 'LIFECYCLE-B'); await expect(notes).toHaveValue('');
@@ -221,6 +221,7 @@ test('ordinary area and completion controls and the reviewed assistant produce i
   await filters.getByRole('spinbutton', { name: 'Max. price', exact: true }).fill('2800000'); await choose('Bedrooms', '2+ bedrooms'); await choose('Property type', 'apartment');
   await filters.getByRole('button', { name: /More filters$/ }).click(); await choose('Completion', 'Ready'); await expect(page.getByTestId('result-count')).toHaveText('2'); const ordinary = await ids();
   await page.getByRole('navigation', { name: 'Main navigation', exact: true }).getByRole('button', { name: /Home$/ }).click();
+  await page.getByRole('button', { name: 'Quick tools', exact: true }).click();
   await home(page).getByRole('textbox', { name: 'Sales conversation / notes', exact: true }).fill('A ready 2 bedroom apartment in Dubai Marina, budget up to AED 2.8m.'); await home(page).getByRole('button', { name: 'Send request', exact: true }).click();
   await home(page).getByRole('region', { name: 'Review task details', exact: true }).getByRole('button', { name: 'Continue', exact: true }).click(); await expect(page.getByTestId('result-count')).toHaveText('2'); expect(await ids()).toEqual(ordinary);
   await filters.getByRole('spinbutton', { name: 'Max. price', exact: true }).fill('1000000'); await expect(page.getByTestId('result-count')).toHaveText('0'); await filters.getByRole('button', { name: 'Reset filters', exact: true }).click();

@@ -89,6 +89,7 @@ test('client Word download follows its drawer and contains recommendations and v
 test('private client report is scoped to its creator and is absent from another Sales ID property export', async ({ page }, testInfo) => {
   await ensureSalesIdentity(page);
   await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: /\bHome$/ }).click();
+  await page.getByRole('button', { name: 'Quick tools', exact: true }).click();
   const home = page.getByRole('region', { name: 'Sales task workspace', exact: true });
   await home.getByRole('button', { name: 'Create a Private Client', exact: true }).click();
   await home.getByRole('textbox', { name: 'Sales conversation / notes' }).fill('Client name: Synthetic Export Owner Only. A ready 2 bedroom apartment in Dubai Marina, budget AED 2.8m.');

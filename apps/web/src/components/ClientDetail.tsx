@@ -15,8 +15,6 @@ import {
 import { clientBudgetLabel } from './ClientDirectory';
 import { EnglishDateInput, isValidEnglishDateValue } from './EnglishDateInput';
 import '../client-detail.css';
-import { storyFromRequirement, storyRequirement, type ClientStory } from '../../../../shared/client-story';
-import { ClientStoryBrief } from './ClientStoryBrief';
 
 export interface ClientDetailProps {
   clientId: string | null;
@@ -31,7 +29,6 @@ export interface ClientDetailProps {
   onClose: () => void;
   onOpenProperty: (id: string) => void;
   onEdit: (requirement: ClientRequirement) => void;
-  onSaveStory?: (draft: ClientRequirement, baseline: ClientRequirement | null) => Promise<void>;
   onExport: (clientId: string, requirementId?: string) => void;
   renderLocalControls: (requirement: ClientRequirement) => ReactNode;
   onUseFeedback?: (requirement: ClientRequirement, feedback: string) => void;
@@ -68,16 +65,6 @@ function ClientDetailWorkspace(props: ClientDetailProps) {
   }), [requirements, copies, clientId]);
   const [planId, setPlanId] = useState('');
   const requirement = plans.find(row => row.requirement_id === planId) ?? plans[0];
-  const [story, setStory] = useState<ClientStory | null>(null);
-  const [storyError, setStoryError] = useState('');
-  useEffect(() => {
-    let active = true;
-    if (!requirement) setStory(null);
-    if (requirement) void storyFromRequirement(requirement).then(next => {
-      if (active) setStory(next);
-    }).catch(() => { if (active) setStoryError('Could not prepare this client brief.'); });
-    return () => { active = false; };
-  }, [requirement]);
   const visibility = requirement ? getVisibility?.(requirement.requirement_id) ?? (originals.some(row => row.client_id === clientId) ? 'company' : salesId ? 'private' : 'legacy') : 'company';
   const access = useMemo<ViewingAccess>(() => ({ scope: storageScope, salesId, requirements, listings: viewingListings }), [storageScope, salesId, requirements, viewingListings]);
   const [stored, setStored] = useState<StoredViewingRecords | null>(null);
@@ -185,16 +172,9 @@ function ClientDetailWorkspace(props: ClientDetailProps) {
     {requirement?.data_kind === 'demo' && <details className="client-detail-demo-tools"><summary>Viewing Examples</summary><p>Optional fictional viewing records for this client.</p><Button disabled={!canWrite || records.some(row => row.source_kind === 'fictional_example')} onClick={examples}>Load Fictional Viewings</Button></details>}
   </section>;
 
-  return <section className="story-full-client client-detail-drawer" hidden={!(props.open ?? !!clientId)} aria-label="Client details">
-    {storyError && <Alert type="error" message={storyError} />}
-    {story ? <ClientStoryBrief story={story} onChange={setStory} onBack={onClose} listings={listings} onOpenProperty={onOpenProperty}
-      onSave={salesId && props.onSaveStory ? () => { void props.onSaveStory!(storyRequirement(story), requirement).catch(e => setStoryError(String(e))); } : undefined}>
-      <details className="story-legacy"><summary>Viewing history, requirement versions & export</summary>
-        <Button disabled={!requirement || !clientId} onClick={() => clientId && requirement && onExport(clientId, requirement.requirement_id)}>Export Report</Button>
-        <Tabs defaultActiveKey="recommended" items={[{ key: 'recommended', label: 'Recommended Properties', children: recommendationTab }, { key: 'viewings', label: 'Viewing History', children: viewingTab }]} />
-      </details>
-    </ClientStoryBrief> : <div><Button onClick={onClose}>Back to previous view</Button><p>{requirement ? 'Preparing client brief…' : 'This client is unavailable in the current dataset.'}</p></div>}
-  </section>;
+  return <Drawer open={props.open ?? !!clientId} onClose={onClose} width={840} rootClassName="client-detail-drawer" title={<div className="client-detail-title"><strong>{requirement ? clientDisplayName(requirement) : 'Client Details'}</strong><div><span>{clientId}</span><Tag>{CLIENT_VISIBILITY_LABELS[visibility]}</Tag>{visibility === 'private' && <span>Sales ID: {salesId || 'Not supplied'}</span>}</div></div>} extra={<Button disabled={!requirement || !clientId} onClick={() => clientId && requirement && onExport(clientId, requirement.requirement_id)}>Export Report</Button>}>
+    <Tabs defaultActiveKey="recommended" items={[{ key: 'recommended', label: 'Recommended Properties', children: recommendationTab }, { key: 'viewings', label: 'Viewing History', children: viewingTab }]} />
+  </Drawer>;
 }
 
 /** Scope and identity changes discard the previous client's viewing drafts synchronously. */

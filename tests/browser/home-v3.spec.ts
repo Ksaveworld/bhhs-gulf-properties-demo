@@ -1,4 +1,3 @@
-import { openClientHistory } from './helpers';
 import { expect, test, type Page } from '@playwright/test';
 import { ensureSalesIdentity } from './helpers';
 
@@ -81,8 +80,7 @@ test('English date fields keep invalid input visible, allow clearing and save ex
   await expect(confirmation).toContainText('2028-02-29');
   await expect(confirmation).toContainText('2028-03-01');
   await confirmation.getByRole('button', { name: 'Confirm & Create', exact: true }).click();
-  const client = page.locator('.story-full-client:not([hidden])');
-  await openClientHistory(page);
+  const client = page.getByRole('dialog').filter({ has: page.getByRole('tab', { name: 'Recommended Properties', exact: true }) });
   await expect(client).toContainText('Synthetic V3 Dates');
   await page.reload();
   await expect(client).toContainText('2028-02-29');
@@ -95,9 +93,8 @@ test('English viewing time rejects rollover dates and preserves local time when 
   await prepareCreate(page);
   await review(page).getByRole('button', { name: 'Continue', exact: true }).click();
   await page.getByRole('dialog', { name: 'Confirm private client', exact: true }).getByRole('button', { name: 'Confirm & Create', exact: true }).click();
-  const client = page.locator('.story-full-client:not([hidden])');
-  await openClientHistory(page);
-  await openClientHistory(page); await client.getByRole('tab', { name: 'Viewing History', exact: true }).click();
+  const client = page.getByRole('dialog').filter({ has: page.getByRole('tab', { name: 'Viewing History', exact: true }) });
+  await client.getByRole('tab', { name: 'Viewing History', exact: true }).click();
   await client.getByText('Add a Viewing Record', { exact: true }).click();
   const viewedAt = client.getByRole('textbox', { name: 'Viewed at', exact: true });
   await expect(viewedAt).toHaveAttribute('type', 'text');
@@ -112,6 +109,6 @@ test('English viewing time rejects rollover dates and preserves local time when 
   await client.getByRole('button', { name: 'Save Viewing Record', exact: true }).click();
   await expect(client.locator('time[datetime="2026-09-04T20:45:00.000Z"]')).toBeVisible();
   await page.reload();
-  await openClientHistory(page); await client.getByRole('tab', { name: 'Viewing History', exact: true }).click();
+  await client.getByRole('tab', { name: 'Viewing History', exact: true }).click();
   await expect(client.locator('time[datetime="2026-09-04T20:45:00.000Z"]')).toBeVisible();
 });

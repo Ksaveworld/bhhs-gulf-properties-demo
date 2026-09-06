@@ -1,4 +1,3 @@
-import { openClientHistory } from './helpers';
 import { expect, test } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import JSZip from 'jszip';
@@ -33,11 +32,10 @@ test('a legacy company review remains Unassigned and exports source ownership wi
   await expect(card).toBeVisible();
   await expect(card.getByText('Unassigned', { exact: true })).toBeVisible();
   await card.getByRole('button', { name: /View Client Details/ }).click();
-  const drawer = page.locator('.story-full-client:not([hidden])');
-  await openClientHistory(page);
-  await openClientHistory(page); await drawer.getByRole('combobox', { name: 'Independent client plan', exact: true }).selectOption(legacy.requirement.requirement_id);
+  const drawer = page.locator('.client-detail-drawer .ant-drawer-content');
+  await drawer.getByRole('combobox', { name: 'Independent client plan', exact: true }).selectOption(legacy.requirement.requirement_id);
   await expect(drawer.locator('.client-detail-current')).toContainText('2,700,000');
-  await openClientHistory(page); await drawer.getByRole('button', { name: 'Export Report', exact: true }).click();
+  await drawer.getByRole('button', { name: 'Export Report', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Export report', exact: true });
   await dialog.getByRole('radio', { name: 'Word', exact: true }).check();
   const pending = page.waitForEvent('download');
@@ -70,10 +68,9 @@ test('conflicting imported sales assignments stay explicit in client details and
   const before = await page.evaluate(() => Object.keys(localStorage).filter(key => key.startsWith('bhhs:local-requirements:')).map(key => [key, localStorage.getItem(key)]));
   const directory = page.getByRole('region', { name: 'Client directory', exact: true });
   await directory.locator('article[data-client-id="DEMO-C-001"]').getByRole('button', { name: /View Client Details/ }).click();
-  const drawer = page.locator('.story-full-client:not([hidden])');
-  await openClientHistory(page);
+  const drawer = page.locator('.client-detail-drawer .ant-drawer-content');
   await expect(drawer.getByText('Company assignment needs confirmation', { exact: true })).toBeVisible();
-  await openClientHistory(page); await drawer.getByRole('button', { name: 'Export Report', exact: true }).click();
+  await drawer.getByRole('button', { name: 'Export Report', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Export report', exact: true });
   await dialog.getByRole('radio', { name: 'Word', exact: true }).check();
   const pending = page.waitForEvent('download');

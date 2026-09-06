@@ -1,4 +1,3 @@
-import { openClientHistory } from './helpers';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import JSZip from 'jszip';
@@ -79,8 +78,7 @@ test('client Word download follows its drawer and contains recommendations and v
   const card = page.locator('.client-directory-client').first();
   const alias = await card.locator('.client-directory-client-name strong').innerText();
   await card.getByRole('button', { name: /View Client Details/ }).click();
-  const drawer = page.locator('.story-full-client:not([hidden])');
-  await openClientHistory(page);
+  const drawer = page.getByRole('dialog').filter({ has: page.getByRole('tab', { name: 'Recommended Properties', exact: true }) });
   await drawer.getByRole('button', { name: /Export report/i }).click();
   const result = await docx(await download(page, testInfo, 'Word', 'client-word'));
   expect(result.text).toContain(alias);
@@ -98,14 +96,13 @@ test('private client report is scoped to its creator and is absent from another 
   await home.getByRole('button', { name: 'Send request', exact: true }).click();
   await home.getByRole('button', { name: 'Continue', exact: true }).click();
   await page.getByRole('dialog', { name: 'Confirm private client', exact: true }).getByRole('button', { name: 'Confirm & Create', exact: true }).click();
-  const drawer = page.locator('.story-full-client:not([hidden])');
-  await openClientHistory(page);
+  const drawer = page.getByRole('dialog').filter({ has: page.getByRole('tab', { name: 'Recommended Properties', exact: true }) });
   await expect(drawer).toContainText('Synthetic Export Owner Only');
   await drawer.getByRole('button', { name: /Export report/i }).click();
   const own = await docx(await download(page, testInfo, 'Word', 'own-private-client'));
   expect(own.text).toContain('Synthetic Export Owner Only');
   expect(own.text).toContain('LEGACY-REGRESSION-SALES');
-  await drawer.getByRole('button', { name: 'Back to previous view', exact: true }).click();
+  await drawer.getByRole('button', { name: 'Close', exact: true }).click();
   await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: /Property library/ }).click();
   await exportProperty(page);
   const ownProperty = await docx(await download(page, testInfo, 'Word', 'own-sales-property'));

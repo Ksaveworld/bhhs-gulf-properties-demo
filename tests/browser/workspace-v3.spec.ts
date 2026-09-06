@@ -1,10 +1,9 @@
-import { openClientHistory } from './helpers';
 import { expect, test, type Page } from '@playwright/test';
 
 test.use({ viewport: { width: 1366, height: 768 } });
 test.setTimeout(60000);
 const property = (page: Page) => page.locator('.property-detail.ant-drawer-open .ant-drawer-content');
-const client = (page: Page) => page.locator('.story-full-client:not([hidden])');
+const client = (page: Page) => page.locator('.client-detail-drawer.ant-drawer-open .ant-drawer-content');
 async function signIn(page: Page, salesId: string) {
   const login = page.getByRole('dialog', { name: 'Sales sign in', exact: true });
   await login.getByRole('textbox', { name: 'Username', exact: true }).fill('Synthetic V3 sales');
@@ -21,7 +20,7 @@ test('property to client to another property keeps filters, tabs and browser bac
   await property(page).getByRole('tab', { name: 'Potential clients', exact: true }).click();
   await property(page).locator('article[data-client-id="DEMO-C-001"]').getByRole('button', { name: 'View Client Details', exact: true }).click();
   await expect(property(page)).toHaveCount(0);
-  await openClientHistory(page); await client(page).getByRole('combobox', { name: 'Independent client plan', exact: true }).selectOption('DEMO-R-001');
+  await client(page).getByRole('combobox', { name: 'Independent client plan', exact: true }).selectOption('DEMO-R-001');
   await client(page).locator('article[data-listing-id="DEMO-L-002"]').getByRole('button', { name: 'View Property Details', exact: true }).click();
   await expect(property(page).getByRole('heading', { name: 'Harbour View', exact: true })).toBeVisible();
   expect(new URL(page.url()).hash).toMatch(/^#\/properties/);
@@ -31,7 +30,7 @@ test('property to client to another property keeps filters, tabs and browser bac
   await expect(property(page).getByRole('heading', { name: 'Harbour View', exact: true })).toBeVisible();
   await property(page).getByRole('button', { name: 'Close', exact: true }).click();
   await expect(client(page).getByRole('combobox', { name: 'Independent client plan', exact: true })).toHaveValue('DEMO-R-001');
-  await client(page).getByRole('button', { name: 'Back to previous view', exact: true }).click();
+  await client(page).getByRole('button', { name: 'Close', exact: true }).click();
   await expect(property(page).getByRole('tab', { name: 'Potential clients', exact: true })).toHaveAttribute('aria-selected', 'true');
   await property(page).getByRole('button', { name: 'Close', exact: true }).click();
   await expect(page.getByRole('spinbutton', { name: 'Max. price', exact: true })).toHaveValue('3000000');
@@ -89,18 +88,17 @@ test('directory create retains a guest review across sign-in and a failed save; 
   await expect(client(page)).toContainText('Synthetic V3 Resume');
   expect(new URL(page.url()).hash).toMatch(/^#\/clients/);
   const savedUrl = page.url();
-  await client(page).getByRole('button', { name: 'Back to previous view', exact: true }).click();
+  await client(page).getByRole('button', { name: 'Close', exact: true }).click();
   await expect(location).toHaveValue('Marina');
   const reopened = await context.newPage();
   await reopened.goto(savedUrl);
-  await openClientHistory(reopened);
   await expect(client(reopened)).toContainText('Synthetic V3 Resume');
   await reopened.close();
 });
 
 test('library sorting is centered and operative, and dates reject invalid values using English controls', async ({ page }) => {
   await page.goto('/#/properties');
-  await expect(page.locator('.home-demo-badge')).toHaveCount(0);
+  await expect(page.locator('.home-demo-badge')).toHaveText('Demo');
   await expect(page.getByText('Data & sources', { exact: true })).toHaveCount(0);
   await expect(page.locator('.evidence-banner')).toHaveCount(0);
   await expect(page.getByRole('columnheader', { name: 'Report', exact: true })).toHaveCount(0);

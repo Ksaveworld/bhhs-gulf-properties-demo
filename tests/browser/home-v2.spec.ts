@@ -1,4 +1,3 @@
-import { openClientHistory } from './helpers';
 import { expect, test, type Page } from '@playwright/test';
 import { ensureSalesIdentity } from './helpers';
 
@@ -103,8 +102,7 @@ test('Add Private Client opens creation, requires confirmation, Back edits, and 
   await expect(confirmation).toContainText('Synthetic Home V2 Updated');
   await confirmation.getByRole('button', { name: 'Confirm & Create', exact: true }).click();
   await expect(confirmation).toBeHidden();
-  const drawer = page.locator('.story-full-client:not([hidden])');
-  await openClientHistory(page);
+  const drawer = page.getByRole('dialog').filter({ has: page.getByRole('tab', { name: 'Recommended Properties', exact: true }) });
   await expect(drawer).toContainText('Synthetic Home V2 Updated');
   await expect(drawer.getByRole('tab', { name: 'Recommended Properties', exact: true })).toHaveAttribute('aria-selected', 'true');
   await expect(drawer.getByRole('tab')).toHaveCount(2);

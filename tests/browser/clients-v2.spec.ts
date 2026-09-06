@@ -1,3 +1,4 @@
+import { openClientHistory } from './helpers';
 import { expect, test, type Page } from '@playwright/test';
 import { evaluateMatch, latestListings } from '../../shared/matching';
 import { filterClientDirectory, EMPTY_CLIENT_DIRECTORY_FILTERS } from '../../shared/client-directory';
@@ -8,19 +9,19 @@ test.use({ viewport: { width: 1366, height: 768 } });
 test.setTimeout(60000);
 const clientId = 'DEMO-C-001';
 const directory = (page: Page) => page.getByRole('region', { name: 'Client directory', exact: true });
-const detail = (page: Page) => page.locator('.client-detail-drawer.ant-drawer-open .ant-drawer-content');
+const detail = (page: Page) => page.locator('.story-full-client:not([hidden])');
 const cards = (page: Page) => directory(page).locator('article[data-client-id]');
 const requirementDrafts = (page: Page) => page.evaluate(() => Object.keys(localStorage).filter(key => key.startsWith('bhhs:local-requirements:')).map(key => ({ key, value: localStorage.getItem(key) })));
 async function clients(page: Page) { await page.goto('/#/clients'); await expect(directory(page)).toBeVisible(); }
 async function openClient(page: Page, id = clientId) {
   await clients(page);
   await directory(page).locator(`article[data-client-id="${id}"]`).getByRole('button', { name: 'View Client Details' }).click();
-  await expect(detail(page)).toBeVisible();
+  await expect(detail(page)).toBeVisible(); await openClientHistory(page);
   await expect(detail(page).getByRole('tab', { name: 'Recommended Properties', exact: true })).toHaveAttribute('aria-selected', 'true');
 }
 async function signedIn(page: Page) { await page.goto('/'); await ensureSalesIdentity(page); }
 async function viewingForm(page: Page) {
-  await detail(page).getByRole('tab', { name: 'Viewing History', exact: true }).click();
+  await openClientHistory(page); await detail(page).getByRole('tab', { name: 'Viewing History', exact: true }).click();
   const entry = detail(page).locator('.client-detail-viewing-entry');
   if (await entry.getAttribute('open') === null) await entry.locator('summary').click();
   return entry;
@@ -68,16 +69,16 @@ test('client drawer has two tabs and its visible recommendation groups exactly m
   await signedIn(page); await openClient(page);
   expect(new URL(page.url()).hash).toMatch(/^#\/clients/);
   await expect(detail(page).getByRole('tab')).toHaveText(['Recommended Properties', 'Viewing History']);
-  await detail(page).getByRole('combobox', { name: 'Independent client plan', exact: true }).selectOption('DEMO-R-001');
+  await openClientHistory(page); await detail(page).getByRole('combobox', { name: 'Independent client plan', exact: true }).selectOption('DEMO-R-001');
   const requirement = dataset.client_requirements.find(row => row.requirement_id === 'DEMO-R-001')!;
   for (const status of ['match', 'review'] as const) {
     const expected = latestListings(dataset.listing_snapshots).filter(listing => (listing.currency === 'AED' || listing.currency === null) && evaluateMatch(listing, requirement).status === status).map(row => row.listing_id);
     expect(await detail(page).locator(`[data-match-group="${status}"] article[data-listing-id]`).evaluateAll(rows => rows.map(row => row.getAttribute('data-listing-id')))).toEqual(expected);
   }
   await expect(detail(page).getByText(/Hard Conflict|Unique Clients/)).toHaveCount(0);
-  await detail(page).getByRole('tab', { name: 'Viewing History', exact: true }).click();
+  await openClientHistory(page); await detail(page).getByRole('tab', { name: 'Viewing History', exact: true }).click();
   await expect(detail(page).getByText('No viewing history recorded for this client.', { exact: true })).toBeVisible();
-  await detail(page).getByRole('tab', { name: 'Recommended Properties', exact: true }).click();
+  await openClientHistory(page); await detail(page).getByRole('tab', { name: 'Recommended Properties', exact: true }).click();
   await detail(page).locator('.client-detail-property[data-listing-id="DEMO-L-001"]').getByRole('button', { name: 'View Property Details' }).click();
   const property = page.locator('.property-detail .ant-drawer-content');
   await expect(property).toBeVisible();
@@ -93,8 +94,8 @@ test('client drawer has two tabs and its visible recommendation groups exactly m
 test('editing one plan preserves originals, updates one current version, and restores with history retained', async ({ page, request }) => {
   const source = await (await request.get('/api/dataset')).json() as Dataset;
   await signedIn(page); await openClient(page);
-  await detail(page).getByRole('combobox', { name: 'Independent client plan', exact: true }).selectOption('DEMO-R-001');
-  await detail(page).getByRole('button', { name: 'Edit Current Needs', exact: true }).click();
+  await openClientHistory(page); await detail(page).getByRole('combobox', { name: 'Independent client plan', exact: true }).selectOption('DEMO-R-001');
+  await openClientHistory(page); await detail(page).getByRole('button', { name: 'Edit Current Needs', exact: true }).click();
   const editor = page.getByRole('dialog', { name: 'Edit client requirements', exact: true });
   await editor.getByRole('spinbutton', { name: 'Budget Range maximum', exact: true }).fill('2500000');
   await editor.getByRole('button', { name: 'Save requirements', exact: true }).click();
@@ -107,7 +108,7 @@ test('editing one plan preserves originals, updates one current version, and res
   expect(copies).toHaveLength(1);
   expect(JSON.parse(copies[0].value!).copies[0].edit_kind).toBe('revision');
   await page.reload();
-  await expect(detail(page)).toBeVisible();
+  await expect(detail(page)).toBeVisible(); await openClientHistory(page);
   await expect(detail(page).locator('.client-detail-current')).toContainText('2,500,000');
   await detail(page).getByRole('button', { name: 'Restore original', exact: true }).click();
   await expect(detail(page).locator('.client-detail-current')).toContainText('2,800,000');
@@ -125,10 +126,11 @@ test('viewing entries survive reload and reopen; reviewing feedback requires an 
   await expect(detail(page).getByTestId('client-viewing-count')).toHaveText('1 recorded viewings');
   expect(await requirementDrafts(page)).toEqual(before);
   await page.reload();
-  await detail(page).getByRole('tab', { name: 'Viewing History', exact: true }).click();
+  await openClientHistory(page); await detail(page).getByRole('tab', { name: 'Viewing History', exact: true }).click();
   await expect(detail(page).getByRole('list', { name: 'Client viewing timeline', exact: true })).toContainText('quieter outlook');
   const reopened = await context.newPage();
   await reopened.goto(page.url());
+  await openClientHistory(reopened);
   await detail(reopened).getByRole('tab', { name: 'Viewing History', exact: true }).click();
   await expect(detail(reopened).getByTestId('client-viewing-count')).toHaveText('1 recorded viewings');
   await reopened.close();

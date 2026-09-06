@@ -1,3 +1,4 @@
+import { openClientHistory } from './helpers';
 import { expect, test, type APIRequestContext, type BrowserContext, type Page } from '@playwright/test';
 import { requirementStorageKey, type LocalRequirementCopy } from '../../shared/local-requirements';
 import { salesRequirementKey } from '../../shared/sales-identity';
@@ -7,7 +8,7 @@ test.use({ viewport: { width: 1366, height: 768 } });
 test.setTimeout(60000);
 const clientId = 'DEMO-LIFECYCLE-C';
 const originalId = 'DEMO-LIFECYCLE-R';
-const drawer = (page: Page) => page.locator('.client-detail-drawer .ant-drawer-content');
+const drawer = (page: Page) => page.locator('.story-full-client:not([hidden])');
 const directory = (page: Page) => page.getByRole('region', { name: 'Client directory', exact: true });
 const home = (page: Page) => page.getByRole('region', { name: 'Sales task workspace', exact: true });
 const current = (page: Page) => drawer(page).locator('.client-detail-current');
@@ -43,8 +44,8 @@ async function signIn(page: Page, id = 'LIFECYCLE-A') {
   await modal.getByRole('button', { name: 'Continue as sales', exact: true }).click();
   await expect(modal).toBeHidden();
 }
-async function openClient(page: Page, id = clientId) { await page.goto('/#/clients'); await directory(page).locator('article[data-client-id="' + id + '"]').getByRole('button', { name: 'View Client Details' }).click(); await expect(drawer(page)).toBeVisible(); }
-async function saveEdit(page: Page, budget: string) { await drawer(page).getByRole('button', { name: 'Edit Current Needs', exact: true }).click(); await editor(page).getByRole('spinbutton', { name: 'Budget Range maximum', exact: true }).fill(budget); await editor(page).getByRole('button', { name: 'Save requirements', exact: true }).click(); await expect(editor(page)).toBeHidden(); await expect(current(page)).toHaveAttribute('data-requirement-id', /^SESSION-R-/); return (await current(page).getAttribute('data-requirement-id'))!; }
+async function openClient(page: Page, id = clientId) { await page.goto('/#/clients'); await directory(page).locator('article[data-client-id="' + id + '"]').getByRole('button', { name: 'View Client Details' }).click(); await expect(drawer(page)).toBeVisible(); await openClientHistory(page); }
+async function saveEdit(page: Page, budget: string) { await openClientHistory(page); await drawer(page).getByRole('button', { name: 'Edit Current Needs', exact: true }).click(); await editor(page).getByRole('spinbutton', { name: 'Budget Range maximum', exact: true }).fill(budget); await editor(page).getByRole('button', { name: 'Save requirements', exact: true }).click(); await expect(editor(page)).toBeHidden(); await expect(current(page)).toHaveAttribute('data-requirement-id', /^SESSION-R-/); return (await current(page).getAttribute('data-requirement-id'))!; }
 
 test('batch and content-version isolation survive reload and reopening while timestamps keep the same saved version', async ({ page, request, context }) => {
   const { source, change } = await fixture(context, request, 'scope');
@@ -61,7 +62,8 @@ test('batch and content-version isolation survive reload and reopening while tim
   change(source); await page.reload(); await expect(current(page)).toHaveAttribute('data-requirement-id', saved);
   expect(await propertyIds(page)).toEqual(candidateIds);
   const url = page.url(); await page.close(); const reopened = await context.newPage();
-  await reopened.goto(url); await expect(current(reopened)).toHaveAttribute('data-requirement-id', saved); expect(await propertyIds(reopened)).toEqual(candidateIds);
+  await reopened.goto(url);
+  await openClientHistory(reopened); await expect(current(reopened)).toHaveAttribute('data-requirement-id', saved); expect(await propertyIds(reopened)).toEqual(candidateIds);
   await drawer(reopened).locator('.client-detail-property[data-listing-id="DEMO-L-001"]').getByRole('button', { name: 'View Property Details', exact: true }).click();
   const property = reopened.locator('.property-detail .ant-drawer-content'); await property.getByRole('tab', { name: 'Potential clients', exact: true }).click();
   await expect(property.locator('article[data-client-id="' + clientId + '"]')).toBeVisible();
@@ -75,7 +77,7 @@ test('browser storage read failure keeps saved bytes and recovers through the vi
   await page.reload(); await expect(page.getByTestId('local-storage-error')).toContainText('could not be loaded');
   await page.evaluate(() => (window as Window & { restoreRead?: () => void }).restoreRead!());
   expect(await localSnapshot(page)).toEqual(before);
-  await drawer(page).getByRole('button', { name: 'Close', exact: true }).click();
+  await drawer(page).getByRole('button', { name: 'Back to previous view', exact: true }).click();
   await page.getByRole('button', { name: 'Retry local storage', exact: true }).click();
   await expect(page.getByTestId('local-storage-error')).toHaveCount(0); await openClient(page); await expect(current(page)).toHaveAttribute('data-requirement-id', id);
 });
@@ -83,7 +85,7 @@ test('browser storage read failure keeps saved bytes and recovers through the vi
 test('an existing revision survives a denied write and the unchanged draft can be saved after retry', async ({ page, request, context }) => {
   await fixture(context, request, 'write-retry'); await page.goto('/'); await signIn(page); await openClient(page);
   await saveEdit(page, '2500000'); const before = await localSnapshot(page);
-  await drawer(page).getByRole('button', { name: 'Edit Current Needs', exact: true }).click();
+  await openClientHistory(page); await drawer(page).getByRole('button', { name: 'Edit Current Needs', exact: true }).click();
   await editor(page).getByRole('spinbutton', { name: 'Budget Range maximum', exact: true }).fill('2600000');
   await page.evaluate(() => { const original = Storage.prototype.setItem; (window as Window & { restoreWrite?: () => void }).restoreWrite = () => { Storage.prototype.setItem = original; }; Storage.prototype.setItem = function (key, value) { if (key.startsWith('bhhs:local-requirements:')) throw new DOMException('Synthetic blocked write', 'SecurityError'); return original.call(this, key, value); }; });
   await editor(page).getByRole('button', { name: 'Save requirements', exact: true }).click();
@@ -102,7 +104,7 @@ test('unknown and conflicting area bases stay pending and v1 legacy basis remain
   await expect(current(page)).toContainText('Area basis needs confirmation'); await expect(drawer(page).locator('[data-match-group="match"] article')).toHaveCount(0);
   await saveEdit(page, '2800000'); expect((await copies(page))[0].requirement.area_basis).toBe('unknown');
   const conflict = structuredClone(source); conflict.client_requirements[0].area_basis = 'internal'; change(conflict); await page.reload();
-  await expect(current(page)).toContainText('Area basis needs confirmation'); await drawer(page).getByRole('button', { name: 'Edit Current Needs', exact: true }).click();
+  await expect(current(page)).toContainText('Area basis needs confirmation'); await openClientHistory(page); await drawer(page).getByRole('button', { name: 'Edit Current Needs', exact: true }).click();
   await expect(editor(page)).toContainText('Structured field (internal)'); await expect(editor(page)).toContainText('legacy statements (built_up)'); await editor(page).getByRole('button', { name: 'Close', exact: true }).click();
   const legacy = structuredClone(source); delete legacy.client_requirements[0].area_basis; change(legacy); await page.reload();
   await expect(current(page).getByText('Area basis needs confirmation', { exact: true })).toHaveCount(0); expect(await propertyIds(page)).toEqual(['DEMO-L-001', 'DEMO-L-002', 'DEMO-L-007']);
@@ -114,13 +116,13 @@ test('Chinese equivalent, contradictory and unrecognized hard wording remains tr
   const { source, change } = await fixture(context, request, 'wording', { raw_request: text, hard_constraints: text });
   await page.goto('/'); await signIn(page); await openClient(page);
   await expect(drawer(page).locator('[data-match-group="match"] article')).toHaveCount(2);
-  await drawer(page).getByRole('button', { name: 'Edit Current Needs', exact: true }).click();
+  await openClientHistory(page); await drawer(page).getByRole('button', { name: 'Edit Current Needs', exact: true }).click();
   await editor(page).getByRole('spinbutton', { name: 'Budget Range maximum', exact: true }).fill('2500000');
   await expect(editor(page)).toContainText('budget_max'); await editor(page).getByRole('button', { name: 'Save requirements', exact: true }).click(); await expect(editor(page)).toBeHidden();
   await expect(drawer(page).locator('[data-match-group="match"] article')).toHaveCount(0); await expect(drawer(page).locator('[data-match-group="review"] article')).toHaveCount(2);
   expect((await copies(page))[0].requirement.raw_request).toBe(text); expect((await copies(page))[0].requirement.hard_constraints).toBe(text);
   const unresolved = structuredClone(source); Object.assign(unresolved.client_requirements[0], { raw_request: '需要花园和停车位；最多2卧室；面积约1100平方英尺；必须能够从客厅看到晨光。', hard_constraints: '必须有停车位；最多2卧室；面积约1100平方英尺；必须能够从客厅看到晨光。', soft_preferences: '偏好花园' });
-  change(unresolved); await page.reload(); await drawer(page).getByRole('button', { name: 'Edit Current Needs', exact: true }).click();
+  change(unresolved); await page.reload(); await openClientHistory(page); await drawer(page).getByRole('button', { name: 'Edit Current Needs', exact: true }).click();
   for (const clause of ['requires garden', '最多2卧室', '面积约1100平方英尺', '必须能够从客厅看到晨光']) await expect(editor(page)).toContainText(clause);
   await editor(page).getByRole('button', { name: 'Save requirements', exact: true }).click(); await expect(editor(page)).toBeHidden();
   await page.reload(); await expect(drawer(page).locator('[data-match-group="match"] article')).toHaveCount(0);
@@ -130,10 +132,10 @@ test('deleting one current local revision reveals its parent, retains the other 
   const { source } = await fixture(context, request, 'delete');
   source.client_requirements.push({ ...source.client_requirements[0], requirement_id: 'DEMO-LIFECYCLE-OTHER', preferred_areas: ['Downtown Dubai'], captured_at: '2020-01-01T00:00:00Z', raw_request: 'Independent synthetic Downtown Dubai purchase plan.' });
   await page.goto('/'); await signIn(page); await openClient(page);
-  await drawer(page).getByRole('combobox', { name: 'Independent client plan', exact: true }).selectOption(originalId);
+  await openClientHistory(page); await drawer(page).getByRole('combobox', { name: 'Independent client plan', exact: true }).selectOption(originalId);
   const first = await saveEdit(page, '2500000'); const second = await saveEdit(page, '2600000'); expect(first).not.toBe(second);
   await drawer(page).getByRole('button', { name: 'Delete local copy', exact: true }).click(); await expect(current(page)).toHaveAttribute('data-requirement-id', first);
-  await page.reload(); await expect(current(page)).toHaveAttribute('data-requirement-id', first); expect((await copies(page)).map(copy => copy.requirement.requirement_id)).toEqual([first]);
+  await page.reload(); await openClientHistory(page); await expect(current(page)).toHaveAttribute('data-requirement-id', first); expect((await copies(page)).map(copy => copy.requirement.requirement_id)).toEqual([first]);
   await expect(drawer(page).getByRole('combobox', { name: 'Independent client plan', exact: true }).locator('option')).toHaveCount(2);
   await drawer(page).getByRole('button', { name: 'Restore original', exact: true }).click(); await expect(current(page)).toContainText('2,800,000');
   await drawer(page).locator('.client-detail-history > summary').click(); await expect(drawer(page).locator('.client-detail-history > ol > li')).toHaveCount(3);
@@ -157,10 +159,10 @@ test('old unowned browser copies stay available separately and are not reassigne
 test('first sign-in retains the guest draft but A/B switches and sign-out clear unsaved notes while saved copies remain owner scoped', async ({ page, request, context }) => {
   await fixture(context, request, 'identity'); await page.goto('/'); const notes = page.getByRole('textbox', { name: 'Client material', exact: true });
   await notes.fill('Synthetic guest draft retained on first sign-in.'); await signIn(page); await expect(notes).toHaveValue('Synthetic guest draft retained on first sign-in.');
-  await openClient(page); const id = await saveEdit(page, '2500000'); await drawer(page).getByRole('button', { name: 'Close', exact: true }).click(); await page.goto('/');
+  await openClient(page); const id = await saveEdit(page, '2500000'); await drawer(page).getByRole('button', { name: 'Back to previous view', exact: true }).click(); await page.goto('/');
   await notes.fill('Synthetic A confidential unsaved draft.'); await signIn(page, 'LIFECYCLE-B'); await expect(notes).toHaveValue('');
   await openClient(page); await expect(current(page)).toHaveAttribute('data-requirement-id', originalId);
-  await drawer(page).getByRole('button', { name: 'Close', exact: true }).click(); await page.goto('/'); await notes.fill('Synthetic B confidential unsaved draft.'); await page.getByRole('button', { name: 'Sign out', exact: true }).click(); await expect(notes).toHaveValue('');
+  await drawer(page).getByRole('button', { name: 'Back to previous view', exact: true }).click(); await page.goto('/'); await notes.fill('Synthetic B confidential unsaved draft.'); await page.getByRole('button', { name: 'Sign out', exact: true }).click(); await expect(notes).toHaveValue('');
   await signIn(page); await openClient(page); await expect(current(page)).toHaveAttribute('data-requirement-id', id);
 });
 
@@ -203,13 +205,13 @@ test('all column sort directions change paginated rows and details retain USD, w
 
 test('fictional viewing examples require a click and are isolated across sales identities and sign-out', async ({ page, request, context }) => {
   await fixture(context, request, 'viewings'); await page.goto('/'); await signIn(page); await openClient(page);
-  await drawer(page).getByRole('tab', { name: 'Viewing History', exact: true }).click(); await expect(drawer(page).getByTestId('client-viewing-count')).toHaveText('0 recorded viewings');
+  await openClientHistory(page); await drawer(page).getByRole('tab', { name: 'Viewing History', exact: true }).click(); await expect(drawer(page).getByTestId('client-viewing-count')).toHaveText('0 recorded viewings');
   await drawer(page).locator('.client-detail-demo-tools > summary').click(); await drawer(page).getByRole('button', { name: 'Load Fictional Viewings', exact: true }).click();
   await expect(drawer(page).getByTestId('client-viewing-count')).toHaveText('2 recorded viewings'); await expect(drawer(page).getByRole('button', { name: 'Load Fictional Viewings', exact: true })).toBeDisabled();
   for (const item of await drawer(page).locator('.client-detail-viewing-timeline > li').all()) await expect(item).toContainText('Fictional example');
-  await drawer(page).getByRole('button', { name: 'Close', exact: true }).click(); await signIn(page, 'LIFECYCLE-B'); await openClient(page); await drawer(page).getByRole('tab', { name: 'Viewing History', exact: true }).click(); await expect(drawer(page).getByTestId('client-viewing-count')).toHaveText('0 recorded viewings');
-  await drawer(page).getByRole('button', { name: 'Close', exact: true }).click(); await page.getByRole('button', { name: 'Sign out', exact: true }).click(); await openClient(page); await drawer(page).getByRole('tab', { name: 'Viewing History', exact: true }).click(); await expect(drawer(page).getByText('Sign in to view and record viewing feedback.', { exact: true })).toBeVisible(); await expect(drawer(page).getByTestId('client-viewing-count')).toHaveText('0 recorded viewings'); await expect(drawer(page).getByRole('button', { name: 'Save Viewing Record', exact: true })).toHaveCount(0);
-  await drawer(page).getByRole('button', { name: 'Close', exact: true }).click(); await signIn(page); await openClient(page); await drawer(page).getByRole('tab', { name: 'Viewing History', exact: true }).click(); await expect(drawer(page).getByTestId('client-viewing-count')).toHaveText('2 recorded viewings');
+  await drawer(page).getByRole('button', { name: 'Back to previous view', exact: true }).click(); await signIn(page, 'LIFECYCLE-B'); await openClient(page); await openClientHistory(page); await drawer(page).getByRole('tab', { name: 'Viewing History', exact: true }).click(); await expect(drawer(page).getByTestId('client-viewing-count')).toHaveText('0 recorded viewings');
+  await drawer(page).getByRole('button', { name: 'Back to previous view', exact: true }).click(); await page.getByRole('button', { name: 'Sign out', exact: true }).click(); await openClient(page); await openClientHistory(page); await drawer(page).getByRole('tab', { name: 'Viewing History', exact: true }).click(); await expect(drawer(page).getByText('Sign in to view and record viewing feedback.', { exact: true })).toBeVisible(); await expect(drawer(page).getByTestId('client-viewing-count')).toHaveText('0 recorded viewings'); await expect(drawer(page).getByRole('button', { name: 'Save Viewing Record', exact: true })).toHaveCount(0);
+  await drawer(page).getByRole('button', { name: 'Back to previous view', exact: true }).click(); await signIn(page); await openClient(page); await openClientHistory(page); await drawer(page).getByRole('tab', { name: 'Viewing History', exact: true }).click(); await expect(drawer(page).getByTestId('client-viewing-count')).toHaveText('2 recorded viewings');
 });
 
 test('ordinary area and completion controls and the reviewed assistant produce identical live candidates', async ({ page }) => {

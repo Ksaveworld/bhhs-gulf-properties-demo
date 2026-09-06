@@ -1,5 +1,13 @@
 import { expect, type Page } from '@playwright/test';
 
+export async function openClientHistory(page: Page) {
+  const panel = page.locator('.story-full-client:not([hidden])');
+  await expect(panel).toBeVisible();
+  const legacy = panel.locator('.story-legacy');
+  await expect(legacy).toBeVisible();
+  if (await legacy.getAttribute('open') === null) await legacy.locator('summary').first().click();
+}
+
 /** Use the visible sign-in flow; retain a restored identity on reloads and new tabs. */
 export async function ensureSalesIdentity(page: Page) {
   const identity = page.getByTestId('current-sales-identity');

@@ -1,3 +1,4 @@
+import { openClientHistory } from './helpers';
 import { expect, test } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import JSZip from 'jszip';
@@ -37,13 +38,14 @@ test('legacy USD viewing survives reload and reopen, retains its original curren
   await page.goto('/#/clients');
   const directory = page.getByRole('region', { name: 'Client directory', exact: true });
   await directory.locator(`article[data-client-id="${record.client_id}"]`).getByRole('button', { name: /View Client Details/ }).click();
-  const drawer = page.locator('.client-detail-drawer .ant-drawer-content');
-  await drawer.getByRole('combobox', { name: 'Independent client plan', exact: true }).selectOption('DEMO-R-001');
+  const drawer = page.locator('.story-full-client:not([hidden])');
+  await openClientHistory(page);
+  await openClientHistory(page); await drawer.getByRole('combobox', { name: 'Independent client plan', exact: true }).selectOption('DEMO-R-001');
   const recommendations = drawer.locator('[data-match-group] article[data-listing-id]');
   expect(await recommendations.count()).toBeGreaterThan(0);
   const originalCandidates = await recommendations.evaluateAll(rows => rows.map(row => row.getAttribute('data-listing-id')));
   expect(originalCandidates).not.toContain(listing.listing_id);
-  await drawer.getByRole('tab', { name: 'Viewing History', exact: true }).click();
+  await openClientHistory(page); await drawer.getByRole('tab', { name: 'Viewing History', exact: true }).click();
   await expect(drawer.getByTestId('client-viewing-count')).toHaveText('1 recorded viewings');
   const viewing = drawer.locator(`li[data-viewing-id="${record.record_id}"]`);
   await expect(viewing).toContainText(propertyName);
@@ -54,13 +56,14 @@ test('legacy USD viewing survives reload and reopen, retains its original curren
   expect(await page.evaluate(key => localStorage.getItem(key), key)).toBe(raw);
 
   await page.reload();
-  await drawer.getByRole('tab', { name: 'Viewing History', exact: true }).click();
+  await openClientHistory(page); await drawer.getByRole('tab', { name: 'Viewing History', exact: true }).click();
   await expect(viewing).toContainText(record.feedback);
   await expect(drawer.getByTestId('client-viewing-count')).toHaveText('1 recorded viewings');
   const reopened = await context.newPage();
   reopened.on('pageerror', error => errors.push(error.message));
   await reopened.goto(page.url());
-  const reopenedDrawer = reopened.locator('.client-detail-drawer .ant-drawer-content');
+  await openClientHistory(reopened);
+  const reopenedDrawer = reopened.locator('.story-full-client:not([hidden])');
   await reopenedDrawer.getByRole('combobox', { name: 'Independent client plan', exact: true }).selectOption('DEMO-R-001');
   expect(await reopenedDrawer.locator('[data-match-group] article[data-listing-id]').evaluateAll(rows => rows.map(row => row.getAttribute('data-listing-id')))).toEqual(originalCandidates);
   await reopenedDrawer.getByRole('tab', { name: 'Viewing History', exact: true }).click();

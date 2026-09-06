@@ -1,3 +1,4 @@
+import { openClientHistory } from './helpers';
 import { expect, test, type Page } from '@playwright/test';
 import { ensureSalesIdentity } from './helpers';
 
@@ -5,7 +6,7 @@ test.use({ viewport: { width: 1366, height: 768 } });
 test.setTimeout(60000);
 
 const directory = (page: Page) => page.getByRole('region', { name: 'Client directory', exact: true });
-const client = (page: Page) => page.locator('.client-detail-drawer.ant-drawer-open .ant-drawer-content');
+const client = (page: Page) => page.locator('.story-full-client:not([hidden])');
 const property = (page: Page) => page.locator('.property-detail.ant-drawer-open .ant-drawer-content');
 
 async function openClient(page: Page) {
@@ -15,11 +16,11 @@ async function openClient(page: Page) {
   await expect(directory(page)).toBeVisible();
   await directory(page).getByRole('textbox', { name: 'Preferred Location', exact: true }).fill('Marina');
   await directory(page).locator('[data-client-id="DEMO-C-001"]').getByRole('button', { name: 'View Client Details' }).click();
-  await expect(client(page)).toBeVisible();
+  await expect(client(page)).toBeVisible(); await openClientHistory(page);
 }
 
 async function openViewingForm(page: Page) {
-  await client(page).getByRole('tab', { name: 'Viewing History', exact: true }).click();
+  await openClientHistory(page); await client(page).getByRole('tab', { name: 'Viewing History', exact: true }).click();
   const form = client(page).locator('.client-detail-viewing-entry');
   await form.locator('summary').click();
   await form.getByRole('combobox', { name: 'Viewed property', exact: true }).selectOption('DEMO-L-001');
@@ -50,7 +51,7 @@ test('guest can start a private client on the current directory page without los
 
 test('nested client and property details return one level at a time and preserve the original plan and tab', async ({ page }, testInfo) => {
   await openClient(page);
-  await client(page).getByRole('combobox', { name: 'Independent client plan', exact: true }).selectOption('DEMO-R-001');
+  await openClientHistory(page); await client(page).getByRole('combobox', { name: 'Independent client plan', exact: true }).selectOption('DEMO-R-001');
   const form = await openViewingForm(page);
   await form.getByLabel('Viewed at', { exact: true }).fill('2026-09-02T09:30');
   await form.getByRole('textbox', { name: 'Viewing feedback', exact: true }).fill('Synthetic V3 navigation check.');
@@ -61,20 +62,20 @@ test('nested client and property details return one level at a time and preserve
   expect(new URL(page.url()).hash).toMatch(/^#\/clients/);
   await property(page).getByRole('tab', { name: 'Potential clients', exact: true }).click();
   await property(page).locator('article[data-client-id="DEMO-C-001"]').getByRole('button', { name: 'View Client Details', exact: true }).click();
-  await expect(client(page)).toBeVisible();
+  await expect(client(page)).toBeVisible(); await openClientHistory(page);
   expect(new URL(page.url()).hash).toMatch(/^#\/clients/);
   await expect.poll(() => client(page).evaluate(element => Math.round(element.getBoundingClientRect().right))).toBe(1366);
   await page.screenshot({ path: testInfo.outputPath('nested-client-detail.png'), fullPage: true, animations: 'disabled' });
-  await client(page).getByRole('button', { name: 'Close', exact: true }).click();
+  await client(page).getByRole('button', { name: 'Back to previous view', exact: true }).click();
   await expect(property(page).getByRole('tab', { name: 'Potential clients', exact: true })).toHaveAttribute('aria-selected', 'true');
   await property(page).getByRole('button', { name: 'Close', exact: true }).click();
   await expect(client(page).getByRole('tab', { name: 'Viewing History', exact: true })).toHaveAttribute('aria-selected', 'true');
   await expect(client(page).getByRole('list', { name: 'Client viewing timeline', exact: true })).toContainText('Synthetic V3 navigation check.');
   await expect.poll(() => client(page).evaluate(element => Math.round(element.getBoundingClientRect().right))).toBe(1366);
   await page.screenshot({ path: testInfo.outputPath('returned-client-viewing-history.png'), fullPage: true, animations: 'disabled' });
-  await client(page).getByRole('tab', { name: 'Recommended Properties', exact: true }).click();
+  await openClientHistory(page); await client(page).getByRole('tab', { name: 'Recommended Properties', exact: true }).click();
   await expect(client(page).getByRole('combobox', { name: 'Independent client plan', exact: true })).toHaveValue('DEMO-R-001');
-  await client(page).getByRole('button', { name: 'Close', exact: true }).click();
+  await client(page).getByRole('button', { name: 'Back to previous view', exact: true }).click();
   await expect(directory(page).getByRole('textbox', { name: 'Preferred Location', exact: true })).toHaveValue('Marina');
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(1366);
 });

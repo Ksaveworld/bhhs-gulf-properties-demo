@@ -14,7 +14,8 @@ test('story exposes real prototype conflicts including location and keeps CRM im
 test('call applies reviewed payment and ceiling, preserves transcript edits and is idempotent for source id', async () => {
   const story = await createKhalidStory();
   const call = { ...freshCall(), payment: 'unknown' as const, budget: 21000000, commitments: 'Ask again on Monday.', viewingTime: 'Sunday 14:00' };
-  const next = applyStoryCall(story, call);
+  const next = applyStoryCall({ ...story, invitationReceipt: 'Earlier invitation sent' }, call);
+  assert.equal(next.invitationReceipt, undefined);
   assert.equal(next.payment, 'unknown');
   assert.equal(next.brief.draft.budget_max, 21000000);
   assert.equal(next.call?.viewingTime, 'Sunday 14:00');
@@ -25,7 +26,7 @@ test('call applies reviewed payment and ceiling, preserves transcript edits and 
 });
 test('reviewed phone, payment and decision makers survive saving without losing original evidence', async () => {
   const original = await createKhalidStory();
-  const next = { ...original, phone: '555-0148', payment: 'mortgage' as const, decision: 'Buyer and spouse' };
+  const next = { ...original, materials: [...original.materials, { id: 'old-edit', kind: 'Sales note' as const, title: 'Earlier edit', text: 'Decision makers: Previous decision maker\nPayment: cash', synthetic: true }], phone: '555-0148', payment: 'mortgage' as const, decision: 'Buyer and spouse' };
   const stored = storyRequirement(next);
   const loaded = await storyFromRequirement(stored);
   assert.equal(loaded.phone, '555-0148');

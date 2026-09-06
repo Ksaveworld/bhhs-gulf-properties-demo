@@ -14,8 +14,9 @@ export interface ClientStory {
 }
 export function storyRequirement(story: ClientStory): ClientRequirement {
   return { ...story.brief.draft, source_ref: story.materials.map(m => m.id).join(', ') || story.brief.draft.source_ref,
-    raw_request: [story.brief.draft.raw_request, `Sales-reviewed phone: ${story.phone || 'not supplied'}\nPayment: ${story.payment}\nDecision makers: ${story.decision || 'not supplied'}`,
-      ...story.materials.filter(m => !story.brief.draft.raw_request.includes(m.text)).map(m => `${m.title}:\n${m.text}`)].join('\n\n') };
+    raw_request: [story.brief.draft.raw_request,
+      ...story.materials.filter(m => !story.brief.draft.raw_request.includes(m.text)).map(m => `${m.title}:\n${m.text}`),
+      `Sales-reviewed phone: ${story.phone || 'not supplied'}\nPayment: ${story.payment}\nDecision makers: ${story.decision || 'not supplied'}`].join('\n\n') };
 }
 export async function storyFromRequirement(requirement: ClientRequirement): Promise<ClientStory> {
   const last = (pattern: RegExp) => [...requirement.raw_request.matchAll(pattern)].at(-1)?.[1] ?? '';
@@ -67,7 +68,7 @@ export function applyStoryCall(story: ClientStory, call: StoryCall): ClientStory
   const source: ClientMaterial = { id: sourceId, kind: 'Call transcript', title: 'Outbound call · just now', synthetic: true,
     text: [call.points, call.changes, call.commitments, `Reviewed payment: ${call.payment}; budget ceiling: ${call.budget ?? 'unknown'}; viewing: ${call.viewingTime}; property: ${storyProperties.find(p => p.id === call.propertyId)?.name ?? 'unselected'}; attendees: ${call.attendees}`].join('\n'),
     reviewedValues: { budget_max: call.budget, currency: 'AED' } };
-  return { ...story, call, payment: call.payment, paymentSource: sourceId, materials: [source, ...story.materials.filter(m => m.id !== sourceId)],
+  return { ...story, invitationReceipt: undefined, call, payment: call.payment, paymentSource: sourceId, materials: [source, ...story.materials.filter(m => m.id !== sourceId)],
     brief: { ...story.brief, draft: { ...story.brief.draft, budget_max: call.budget }, facts: story.brief.facts.map(f => f.id !== 'budget' ? f : {
       ...f, evidence: [...f.evidence, { sourceId, label: source.title, values: { budget_min: story.brief.draft.budget_min, budget_max: call.budget, currency: 'AED', budget_constraint: story.brief.draft.budget_constraint }, display: `AED ${call.budget?.toLocaleString('en-US') ?? 'unconfirmed'}` }], selected: f.evidence.length,
     }) } };

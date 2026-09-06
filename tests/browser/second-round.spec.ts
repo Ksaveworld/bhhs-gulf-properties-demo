@@ -95,7 +95,7 @@ test('source categories open originals with channel metadata; field links and ch
   await expect(drawer.locator('.material-photo-grid button')).toHaveCount(4);
   await page.getByRole('button', { name: 'View photo Open kitchen', exact: true }).click();
   await expect(drawer.locator('.material-photo-large figcaption')).toContainText('Open kitchen');
-  expect(await drawer.locator('.material-photo-large img').evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
+  await expect.poll(() => drawer.locator('.material-photo-large img').evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0), { timeout: 15000 }).toBe(true);
   await page.screenshot({ path: testInfo.outputPath('source-photos.png') });
   await drawer.getByRole('button', { name: 'Close', exact: true }).click();
   await page.locator('.proto-price-risk').click();

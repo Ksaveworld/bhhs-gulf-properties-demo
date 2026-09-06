@@ -43,6 +43,17 @@ Haddad 案例来自第二轮方案。Okonjo 的价格、房源及六周全款成
 
 ## 交付状态
 
-本轮本地修改与验证完成，使用 `npm run dev`，预览地址 `http://127.0.0.1:5173/`。本轮未执行公网部署，线上仍为上一轮已发布版本。
+本轮本地修改与验证完成，使用 `npm run dev`，预览地址 `http://127.0.0.1:5173/`。最初交付仅包含本地修改；用户随后明确要求“上线”，已于 2026-09-06 发布。
 
 P0 提交：`c2a46c7`。来源模型与独立素材组件提交：`a6073f9`。本记录随最后的详情集成和成交案例提交一起保存。
+
+## 第二轮上线验证
+
+- 发布应用版本：`77f83ac`。Vercel 项目：`bhhs-gulf-properties-demo`，production 状态 READY。
+- 部署 ID：`dpl_HzrzgQeu4Esqqu1THYmXiBpNv5S5`。
+- 正式网址：[BHHS Gulf Properties Demo](https://bhhs-gulf-properties-demo.vercel.app/)。已核对该别名指向本次部署 `bhhs-gulf-properties-demo-dbby0xivt-kwillsaveworld.vercel.app`。
+- 云端 `npm run build:public` 通过，公开快照导出成功；线上主文件 `index-CZIrvzLO.js` 与本地已验证应用构建一致。
+- 无登录浏览器验证：首页、健康接口、数据接口及图片均为 HTTP 200；所有五张数据表均为 demo，隔离记录数为 0，页面异常为 0。示例图片实际加载为 1254×1254。
+- 正式网址六项浏览器场景最终通过：外呼保存与预约预填、逐步回退、1440px/1920px 居中与标题、六类素材与字段联动、两位历史成交及客户库本人入口。
+- 首次来源场景检查发生在图片加载完成之前而失败；测试改为等待图片真实加载（最多 15 秒）后，对正式网址专项复验通过。应用代码未因此变化。
+- 发布回执和截图在忽略目录 `.work/round2-release/`；发布后的提交仅记录验证并修正测试等待方式，无需再次发布应用。

@@ -8,6 +8,7 @@ import { listingConfirmationKey, loadListingConfirmation, saveListingConfirmatio
 import { clientDisplayName, propertyAreaSqft, propertyDisplayName } from '../../../../shared/property-presentation';
 import type { ViewingRecord } from '../../../../shared/viewing-records';
 import { TransactionHistory } from './TransactionHistory';
+import { isPrototypeListing } from '../../../../shared/prototype-listings';
 import './PropertyDetail.css';
 
 interface PropertyDetailProps {
@@ -107,6 +108,7 @@ function Overview({ listing, salesId, scope, onSignIn }: { listing: ListingSnaps
       <Descriptions.Item label="Available From">{date(listing.availability_date)}</Descriptions.Item><Descriptions.Item label="Updated">{date(listing.captured_at)}</Descriptions.Item>
     </Descriptions><div className="pd-amenities"><h4>Disclosed Amenities</h4>{listing.amenities?.length ? <Space size={[4, 6]} wrap>{[...new Set(listing.amenities)].map(amenity => <Tag key={amenity}>{label(amenity)}</Tag>)}</Space> : <p className="pd-muted">Not supplied.</p>}</div></section>
     <section className="pd-section" aria-labelledby={id + '-record-source'}><h3 id={id + '-record-source'}>Record and Source</h3><div className="pd-identity-grid"><div><span>Listing ID</span><code>{listing.listing_id}</code></div><div><span>Property ID</span><code>{listing.property_id || 'Not established'}</code></div></div>
+      {isPrototypeListing(listing.listing_id) && <p>{listing.evidence_excerpt}</p>}
       <SourceDetails source={listing} /><SalesConfirmation listing={listing} salesId={salesId} scope={scope} onSignIn={onSignIn} />
     </section>
   </div>;
@@ -162,7 +164,7 @@ export function PropertyDetail({ listing, dataset, requirements, onClose, onView
   const [activeTab, setActiveTab] = useState('overview');
   useEffect(() => { setActiveTab('overview'); }, [listing?.snapshot_id]);
   return <Drawer rootClassName="property-detail" width="min(900px, 96vw)" open={open ?? listing !== null} onClose={onClose} title={listing ? <div className="pd-drawer-title"><div><span className="pd-eyebrow">Property Details</span><h2>{propertyDisplayName(listing)}</h2></div>{onExport && <Button type="primary" onClick={onExport}>Export Report</Button>}</div> : 'Property Details'}>
-    {listing && <><div className="pd-location"><span>{listing.area_name || 'Location not supplied'}</span><Space size={4} wrap><Tag>{label(listing.market_segment)}</Tag><Tag>{label(listing.listing_status)}</Tag></Space></div>
+    {listing && <>{isPrototypeListing(listing.listing_id) && <Alert type="info" showIcon message="Simulated property, transactions and buyers" description="Fictional demo records as of 12 March 2026. Additional dates, sizes and sale records are illustrative, not verified market evidence." style={{ marginBottom: 16 }} />}<div className="pd-location"><span>{listing.area_name || 'Location not supplied'}</span><Space size={4} wrap><Tag>{label(listing.market_segment)}</Tag><Tag>{label(listing.listing_status)}</Tag></Space></div>
       <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
         { key: 'overview', label: 'Overview', children: <Overview listing={listing} salesId={salesId} scope={storageScope || dataset.meta.storage_namespace || null} onSignIn={onSignIn} /> },
         { key: 'evidence', label: 'Price evidence', children: <PriceEvidence key={listing.snapshot_id} listing={listing} dataset={dataset} /> },

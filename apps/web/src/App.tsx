@@ -16,7 +16,7 @@ import { HomeWorkspace } from './components/HomeWorkspace';
 import { PrototypeHome } from './components/PrototypeHome';
 import { PrototypeClient } from './components/PrototypeClient';
 import { closedClientProfiles } from '../../../shared/prototype-cases';
-import { prototypeListing } from '../../../shared/prototype-listings';
+import { prototypeListing, withPrototypeDetails, isPrototypeListing, propertyClientRequirements } from '../../../shared/prototype-listings';
 import { demoRequirement, khalidProfile, profileFromRequirement, type DemoProfile } from '../../../shared/prototype-demo';
 import { ClientRequirementEditor } from './components/ClientRequirementEditor';
 import { PropertyDetail } from './components/PropertyDetail';
@@ -90,7 +90,7 @@ export function App() {
         if (!Array.isArray(next.listing_snapshots) || !Array.isArray(next.client_requirements) || !next.meta)
             throw new Error('Invalid data');
         if (controller.current === current && !current.signal.aborted) {
-            setDataset(next);
+            setDataset(withPrototypeDetails(next));
             setSearchRequirement(null);
             setFilters({ ...EMPTY_FILTERS });
         }
@@ -185,7 +185,7 @@ export function App() {
     function addPrivate() { setCreateOpen(true); }
     function exportProperty(id: string) { const row = sourceListings.find(l => l.listing_id === id) ?? prototypeListing(id); if (row && dataset) {
         setReportError('');
-        setReport(propertySalesReport(row, dataset, requirements, visibleViewings));
+        setReport(propertySalesReport(row, dataset, propertyClientRequirements(row, requirements), visibleViewings));
     } }
     function exportClient(id: string, requirementId?: string) { try {
         if (viewingError)
@@ -216,7 +216,7 @@ export function App() {
         {reportError && <Alert type="error" closable onClose={() => setReportError('')} message={reportError}/>}
         {route.page !== 'home' && <div className="local-storage-notice" data-testid="local-storage-notice" role="status">{local.loading ? 'Loading browser copies…' : `${local.copies.length} saved browser copies · Current browser and data version${identity ? ` · ${identity.sales_id}` : ''}`}</div>}
         <div hidden={route.page !== 'home'}><PrototypeHome key={`${homeVersion}:${dataset.meta.storage_namespace}`} profiles={[...demoProfiles.filter(p => !p.closedCaseId), ...requirements.filter((r, i, all) => all.findIndex(v => v.client_id === r.client_id) === i).map(profileFromRequirement)]} onChange={updateDemo} onOpen={id => navigate({ page: 'clients', details: [{ kind: 'client', id }] })} quickTools={<HomeWorkspace initialTask={homeTask} areas={areas} canSave={!!identity && !local.loading} onSignIn={openSignIn} onFindProperties={(next, req) => { setFilters(next); setSearchRequirement(req); navigate({ page: 'properties', details: [] }); }} onFindClients={next => { setClientFilters(next); navigate({ page: 'clients', details: [] }); }} onCreateClient={req => saveRequirement(req, null)}/>} /></div>
-        {route.page === 'properties' && <>{searchRequirement && homeReviewQuestions(searchRequirement).length > 0 && <Alert type="warning" message="Search conditions to clarify" description={<details><summary>Review open questions</summary><ul>{homeReviewQuestions(searchRequirement).map((q, i) => <li key={i}>{q}</li>)}</ul><p>{searchRequirement.raw_request}</p></details>}/>}<PropertyLibrary listings={listings} filters={filters} onFilter={setFilters} active={searchRequirement} onOpen={id => openDetail({ kind: 'listing', id })} onReset={reset}/></>}
+        {route.page === 'properties' && <>{searchRequirement && homeReviewQuestions(searchRequirement).length > 0 && <Alert type="warning" message="Search conditions to clarify" description={<details><summary>Review open questions</summary><ul>{homeReviewQuestions(searchRequirement).map((q, i) => <li key={i}>{q}</li>)}</ul><p>{searchRequirement.raw_request}</p></details>}/>}<PropertyLibrary listings={listings.filter(row => !isPrototypeListing(row.listing_id))} filters={filters} onFilter={setFilters} active={searchRequirement} onOpen={id => openDetail({ kind: 'listing', id })} onReset={reset}/></>}
         {route.page === 'clients' && <ClientDirectory requirements={[...demoProfiles.map(demoRequirement), ...requirements]} listings={listings} filters={clientFilters} onFiltersChange={setClientFilters} getVisibility={visibility} onView={viewClient} onAddPrivate={addPrivate} canAddPrivate={!!identity} renderLocalControls={localControls}/>}
       </>}
       <footer className="page-footer"><span>BHHS Gulf Properties · Sales workspace</span><Button aria-label="Refresh data" type="text" size="small" icon={<ReloadOutlined />} loading={busy} onClick={() => void load()}>Refresh data</Button></footer></main></div></div>
@@ -227,7 +227,7 @@ export function App() {
         if (target.kind === 'client') return <ClientDetail profiles={clientProfiles} onProfileChange={(id, profile) => setClientProfiles(all => ({ ...all, [id]: profile }))} key={key} open={open} clientId={target.id} requirements={requirements} originals={dataset.client_requirements} copies={local.copies} listings={listings} viewingListings={sourceListings} salesId={identity?.sales_id ?? null} storageScope={local.key} getVisibility={visibility} onClose={closeDetail} onOpenProperty={id => openDetail({ kind: 'listing', id })} onEdit={req => openEdit(req)} onExport={exportClient} renderLocalControls={localControls} onUseFeedback={(req, feedback) => openEdit(req, feedback)}/>;
         const listing = sourceListings.find(row => row.listing_id === target.id) ?? prototypeListing(target.id);
         if (!listing) return <Drawer key={key} open={open} title="Property unavailable" onClose={closeDetail}><Alert type="warning" message="This property is not available in the current data version."/><Button onClick={closeDetail}>Back to previous view</Button></Drawer>;
-        return <PropertyDetail key={key} open={open} listing={listing} dataset={dataset} requirements={requirements} salesId={identity?.sales_id ?? null} storageScope={local.key} viewingRecords={visibleViewings} onClose={closeDetail} onViewClient={viewClient} onExport={() => exportProperty(target.id)} onSignIn={openSignIn}/>;
+        return <PropertyDetail key={key} open={open} listing={listing} dataset={dataset} requirements={propertyClientRequirements(listing, requirements)} salesId={identity?.sales_id ?? null} storageScope={local.key} viewingRecords={visibleViewings} onClose={closeDetail} onViewClient={viewClient} onExport={() => exportProperty(target.id)} onSignIn={openSignIn}/>;
     })}
     {dataset && !busy && createOpen && <Drawer rootClassName="create-client-drawer" title="Create a Private Client" open width="min(880px, 96vw)" onClose={() => setCreateOpen(false)}>
       <HomeWorkspace embedded initialTask="create" areas={areas} canSave={!!identity && !local.loading} onSignIn={openSignIn} onFindProperties={() => undefined} onFindClients={() => undefined} onCreateClient={req => saveRequirement(req, null)}/>

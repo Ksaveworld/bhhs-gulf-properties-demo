@@ -34,3 +34,14 @@
 - 已查看历史 Drawer 顶部、参考区和 PDF 页面。QA 产物存于忽略目录 `.work/customer-release-regression/`、`.work/customer-deal-final/` 与 `.work/customer-deal-pdf-final/`。
 - 初次浏览器断言在 Drawer 入场动画结束前读取位置；已改为等待实际停靠右侧后再核对。没有修改应用动画以绕过检查。
 - 以上为本地 Chrome 演示验收，不代替真实业务数据验收或全浏览器兼容性认证。线上状态另记在发布回执中。
+
+## 正式发布回执
+
+- 已发布应用版本：`b3a6d0086a5008f879922df3b3253e8971b99c7d`，包含 P0 的 `736adf4`。两个应用提交均已推送到 `origin/codex/client-agent-workspace`，无历史重写。
+- Vercel 项目：`bhhs-gulf-properties-demo`；部署 ID：`dpl_DzcP2ydTqKn3duoytDcgPRxWYX5Z`，target=production，状态 READY。
+- 正式网址：[BHHS Gulf Properties Demo](https://bhhs-gulf-properties-demo.vercel.app/)。部署地址：`bhhs-gulf-properties-demo-f8iyceizk-kwillsaveworld.vercel.app`。
+- 自动发布仅更新了带团队后缀的默认别名，原对客网址最初仍指向上次部署。已显式将原对客网址关联到本次部署；随后 `vercel inspect` 对原网址解析到本次部署 ID，匿名浏览器读取到本次主资源 `/assets/index-rsrgE0pj.js`，与本地最终构建一致。
+- 原正式网址匿名检查：首页、health、dataset 均 HTTP 200；44 条公开记录全部为 demo，quarantined_count=0；检查期间页面异常 0，非读取网络请求 0。
+- 原网址 A～E 五条链路最终全部通过：Home 与客户库的三套推荐逐个打开、现有房源→潜在客户→推荐房源逐层返回、两位相似成交、两位本人 Past deal。线上再次完成 8 份 PDF／Word 下载及内容核对。
+- 首次线上 A／B 的精确滚动断言发现 3px 差异。当时未等待外部字体加载；补充等待 `document.fonts.ready` 后两场景再次通过，原像素级断言保留。C／D／E 已在同一应用版本通过，应用代码没有为测试发生修改。
+- 已查看线上历史 Drawer。线上检查和下载记录在 `.work/customer-production/`。最终补充提交仅含本回执与测试等待，不改变已发布应用。

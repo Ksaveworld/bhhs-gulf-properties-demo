@@ -33,6 +33,7 @@ for (const entry of ['Home', 'Clients & needs']) {
     await page.getByLabel('Edit Expected price range', { exact: true }).fill('AED 19–21m');
     await page.getByRole('button', { name: 'Save changes', exact: true }).click();
     await assessment(page).getByRole('button', { name: /Expected price range/ }).click();
+    await page.evaluate(() => document.fonts.ready);
     const before = page.url();
     for (const [name, price, address] of [
       ['Signature Villa, Frond N', '22,500,000', 'Palm Jumeirah, Frond N'],

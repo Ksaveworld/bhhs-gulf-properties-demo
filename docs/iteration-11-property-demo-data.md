@@ -23,4 +23,14 @@
 - 临时截图、下载文件、PDF 渲染位于忽略目录 `.work/prototype-property-data/`、`.work/prototype-pdf-review/`。
 - 首次新增浏览器脚本使用了不对应现有 DOM 的样式定位和过宽的标题定位，已改用实际结构；未因此改变业务规则或放宽功能断言。
 
-以上模拟资料仅用于对客演示，不是实际挂牌、登记成交或真实客户。上线回执在实际发布后补充。
+以上模拟资料仅用于对客演示，不是实际挂牌、登记成交或真实客户。
+
+## 正式上线回执
+
+- 应用版本 `8f777a72014601f7497fb1eac450436e7d131495`，包含模拟数据提交 `01ef3e5`，已推送至 `origin/codex/client-agent-workspace`。
+- Vercel 部署 `dpl_6e1zZP94uttuSqMMZJgVdWu32KQR`，production READY。原网址 `https://bhhs-gulf-properties-demo.vercel.app/` 已显式关联至 `bhhs-gulf-properties-demo-2b0039zuj-kwillsaveworld.vercel.app`，并通过 inspect 复核。
+- 匿名线上检查：页面与两个公开接口均 HTTP 200，主资源 `/assets/index-BFFTQBsH.js` 与本地最终构建一致，页面异常 0，检查期间非读取网络请求 0。
+- 公共 API 保留原 44 条固定 demo 记录；demo 运行时通过统一补充模块增加 3 条房源、15 条成交、15 条关联和 6 条客户需求，全部为模拟。product 模式不注入。
+- 原线上网址 8/8 场景通过：A～E 原链路与三套房源数据专项。新旧报告均实际下载，三套房源的成交、可比、客户详情及报告保持一致。
+- 已查看线上 Frond N 价格证据截图，图表、2 笔历史及3笔可比内容已存在。线上产物保存于 `.work/prototype-production/`。
+- 本回执提交仅更新文档，不改变已发布应用。

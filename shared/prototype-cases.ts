@@ -4,6 +4,7 @@ export type ClosedCase = {
   id: string; clientId: string; name: string; closed: string; result: string;
   portrait: string; challenges: string[]; resolutions: string[]; reference: string; supplied: boolean;
   budget: string; home: string; location: string; time: string;
+  shortlistSummary: string; journey: string[]; takeaways: string[];
 };
 export const CLOSED_CASES: ClosedCase[] = [
   {
@@ -14,6 +15,9 @@ export const CLOSED_CASES: ClosedCase[] = [
     resolutions: ['A 30-day completion commitment secured AED 1.2m of negotiating room.', 'A meeting with the property manager addressed the security questions in person.', 'The seller covered the first year of service charges, written into an addendum.'],
     reference: 'Khalid also has a wife-led decision and an unresolved service-charge question. Reuse the option of asking the seller to cover the first year of service charges in the negotiation.',
     budget: 'AED 18–20m', home: 'Villa · 5 bedrooms', location: 'Palm Jumeirah · Frond M', time: 'Completed August 2024',
+    shortlistSummary: 'Frond M villa, AED 19.4m, closed after three viewings',
+    journey: ['Three viewings before closing on the Frond M villa.', 'The first offer was rejected; the seller held at AED 21m.', 'His wife agreed after the second viewing, following concerns about community security.', 'A service-charge dispute arose during completion; the seller covered the first year in an addendum.'],
+    takeaways: ['Address the family decision-maker’s concerns before progressing the offer.', 'Discuss service charges explicitly and record agreed seller contributions in the contract.', 'Confirm the buyer’s ability to meet a short completion commitment before using it in negotiation.'],
   },
   {
     id: 'okonjo-2023', clientId: 'PROTOTYPE-OKONJO', name: 'S. Okonjo', closed: 'Closed 2023', supplied: false,
@@ -23,6 +27,9 @@ export const CLOSED_CASES: ClosedCase[] = [
     resolutions: ['Focused viewings on ready homes and checked vacant possession before progressing.', 'Agreed a completion checklist with dates and named owners for outstanding items.', 'Shared the available service-charge information before the offer discussion.'],
     reference: 'For Khalid, confirm payment and availability before offering a fast completion. Resolve the service-charge question before the family viewing so the conversation can focus on the home and the offer.',
     budget: 'Not recorded', home: 'Ready villa', location: 'Palm Jumeirah · Frond N', time: 'Completed 2023',
+    shortlistSummary: 'Frond N villa, AED 22.1m, cash, six weeks end to end',
+    journey: ['Ready villas were compared with off-plan options; off-plan was ruled out against the relocation schedule.', 'Viewings focused on ready homes, with vacant possession checked before progressing.', 'The available service-charge information was shared before the offer discussion.', 'The cash purchase completed in six weeks from first contact to transfer.'],
+    takeaways: ['Check availability against the relocation window before arranging viewings.', 'Confirm payment and completion readiness before agreeing a fast timetable.', 'Share available recurring-cost information before discussing the offer.'],
   },
 ];
 export function closedClientProfiles(): DemoProfile[] {

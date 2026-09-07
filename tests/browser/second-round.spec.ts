@@ -128,7 +128,7 @@ test('both historical cases show outcome, obstacles, solutions and transfer to K
   const assessment = page.locator('.proto-detail-page:not([hidden])');
   await expect(assessment.locator('h1')).toHaveText('R. Haddad');
   await expect(assessment.getByRole('heading', { name: 'What we know', exact: true })).toBeVisible();
-  await assessment.getByRole('button', { name: 'Past sale', exact: false }).click();
+  await assessment.getByRole('button', { name: 'Past deal', exact: false }).click();
   await expect(dialog).toContainText('11 weeks');
   await dialog.getByRole('button', { name: 'Close', exact: true }).click();
   await assessment.getByRole('button', { name: '← Back', exact: true }).click();
@@ -142,6 +142,6 @@ test('both historical cases show outcome, obstacles, solutions and transfer to K
   await page.getByLabel('Client Name', { exact: true }).fill('Okonjo');
   await page.getByRole('button', { name: /View Client Details/ }).click();
   await expect(assessment.locator('h1')).toHaveText('S. Okonjo');
-  await assessment.getByRole('button', { name: 'Past sale', exact: false }).click();
+  await assessment.getByRole('button', { name: 'Past deal', exact: false }).click();
   await expect(dialog).toContainText('Closed 2023');
 });
